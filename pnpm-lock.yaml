@@ -86,6 +86,7 @@ importers:
       tippy.js: ^6.3.7
       unified: ^10.1.2
       unist-util-visit: ^4.1.2
+      uuid: ^9.0.0
       vfile: ^5.3.6
       word-count: ^0.2.2
     dependencies:
@@ -106,6 +107,7 @@ importers:
       tippy.js: 6.3.7
       unified: 10.1.2
       unist-util-visit: 4.1.2
+      uuid: 9.0.0
       vfile: 5.3.6
       word-count: 0.2.2
     devDependencies:

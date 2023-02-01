@@ -18,6 +18,7 @@ import useXml from 'codemirror-ssr/mode/xml/xml.js'
 import useYamlFrontmatter from 'codemirror-ssr/mode/yaml-frontmatter/yaml-frontmatter.js'
 import useYaml from 'codemirror-ssr/mode/yaml/yaml.js'
 import selectFiles from 'select-files'
+import { v1 } from 'uuid'
 
 export function createCodeMirror() {
   const codemirror = factory()
@@ -353,4 +354,139 @@ export function getBuiltinActions(
     leftActions,
     rightActions,
   }
+}
+
+// 单纯靠正则来判断header是不准确的, 比如在yaml格式下 # 是代表注释
+export const isHeader = (text: string) => {
+  return /^#+ /.test(text)
+}
+
+export const isHeaderByStyle = (styles: string[] = []) => {
+  return (styles || []).some((style) => style?.toString().includes('header'))
+}
+
+export const addPlayIcon = (doc, index: number, uuid?: string) => {
+  const icon =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path fill="none" d="M0 0h24v24H0z"/><path d="M7.752 5.439l10.508 6.13a.5.5 0 0 1 0 .863l-10.508 6.13A.5.5 0 0 1 7 18.128V5.871a.5.5 0 0 1 .752-.432z"/></svg>'
+  const span = document.createElement('span')
+  span.classList.add('playBtn')
+  span.innerHTML = icon
+  doc.addLineWidget(index, span, {
+    className: `linewidget-playbtn playbtn_${uuid || v1()}`,
+  })
+}
+
+export const hasPlayWidget = (widgets = []) => {
+  return widgets.some((widget) => widget.className.includes('playbtn'))
+}
+
+export const addPlayIconViewport = (
+  doc: any,
+  tomatoInfo: any,
+  dispatch: any
+) => {
+  const tomatoCounts = getTomatoCounts(tomatoInfo)
+  let tomatoInfoChange = false
+  doc.eachLine((line: any) => {
+    const lineIndex = doc.getLineNumber(line)
+
+    if (lineIndex !== undefined) {
+      // 如果行上有widgets, 更新行数
+      if (hasPlayWidget(line.widgets)) {
+        const widgetClassName = line.widgets.find((widget) =>
+          widget.className.includes('playbtn')
+        ).className
+        const uuid = getUuidByClass(widgetClassName)
+        if (uuid) {
+          const oldLine = tomatoInfo[uuid]?.line
+          if (oldLine !== undefined && oldLine !== lineIndex) {
+            tomatoInfo[uuid].line = lineIndex
+            tomatoInfoChange = true
+          }
+        }
+      }
+
+      if (isHeaderByStyle(line.styles) && !hasPlayWidget(line.widgets)) {
+        const uuid = tomatoCounts[lineIndex]?.uuid
+        addPlayIcon(doc, lineIndex, uuid)
+      }
+
+      // 删除的情况不需要考虑style, 只要不符合header格式都要删除. 因为在删除模式下header的样式会保留
+      if (!isHeader(line.text) && hasPlayWidget(line.widgets)) {
+        line.widgets.forEach((widget) => {
+          if (widget.className.includes('playbtn')) {
+            widget.node.remove()
+
+            const uuid = getUuidByClass(widget.className)
+            if (uuid) {
+              delete tomatoInfo[uuid]
+              tomatoInfoChange = true
+            }
+          }
+
+          if (widget.className.includes('tomatocount')) {
+            widget.node.remove()
+          }
+        })
+      }
+    }
+  })
+
+  if (tomatoInfoChange) {
+    dispatch('tomatoInfoChange', { value: tomatoInfo })
+  }
+}
+
+export const showTomatoCount = (
+  doc,
+  index: number,
+  count: number,
+  uuid: string
+) => {
+  const span = document.createElement('span')
+  span.classList.add('tomatoCount')
+  span.innerText = count.toString()
+  doc.addLineWidget(index, span, {
+    className: `linewidget-tomatocount tomatocount_${uuid}`,
+  })
+}
+
+export const getTomatoCounts = (info) => {
+  const result: any = {}
+  Object.keys(info).forEach((uuid: string) => {
+    const val = info[uuid]
+    result[val.line] = { uuid, count: val.count }
+  })
+
+  return result
+}
+
+export const getUuidByClass = (nameList: string) => {
+  const list = nameList.split(' ')
+  const uuidClass = list.find((name) => name.includes('_'))
+  if (uuidClass) {
+    return uuidClass.split('_')[1]
+  }
+}
+
+export const showPlaying = (uuid: string) => {
+  hidePlaying()
+
+  // 隐藏playicon
+  const codeBody = document.querySelector('.CodeMirror-code')
+  codeBody?.classList.add('playing')
+
+  const div = document.createElement('div')
+  div.className = 'tomatoPlaying'
+  const target = document.querySelector(`.playbtn_${uuid}`)
+  if (target) {
+    target.parentNode?.append(div)
+  }
+}
+
+export const hidePlaying = () => {
+  document.querySelectorAll('.tomatoPlaying').forEach((ele) => ele.remove())
+
+  const codeBody = document.querySelector('.CodeMirror-code')
+  codeBody?.classList.remove('playing')
 }

@@ -32,7 +32,7 @@ $max-width: 800px;
   color: $gray-900;
   border: 1px solid $border-color;
   background-color: $white;
-  height: 300px;
+  // height: 300px;
 
   .CodeMirror,
   code,
@@ -308,4 +308,53 @@ $max-width: 800px;
 
 .tippy-box {
   font-size: 12px;
+}
+
+.linewidget-playbtn {
+  position: absolute;
+  right: 18px;
+  z-index: 99;
+  top: 3px;
+  cursor: pointer;
+  visibility: hidden;
+}
+
+.linewidget-tomatocount {
+  position: absolute;
+  right: 8px;
+  z-index: 99;
+  top: 0px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tomatoPlaying {
+  position: absolute;
+  left: 5px;
+  z-index: 99;
+  top: 0px;
+  bottom: 1px;
+  margin: auto 0;
+  background-color: red;
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+}
+
+.playBtn > svg {
+  width: 15px;
+  height: 15px;
+}
+
+.CodeMirror-line:hover + .linewidget-playbtn {
+  visibility: visible;
+}
+
+.linewidget-playbtn:hover {
+  visibility: visible;
+}
+
+.CodeMirror-code.playing .linewidget-playbtn {
+  visibility: hidden;
 }

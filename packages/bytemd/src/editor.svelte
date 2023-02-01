@@ -8,6 +8,16 @@
     findStartIndex,
     getBuiltinActions,
     handleImageUpload,
+    addPlayIconViewport,
+    isHeader,
+    isHeaderByStyle,
+    addPlayIcon,
+    hasPlayWidget,
+    showTomatoCount,
+    getTomatoCounts,
+    getUuidByClass,
+    showPlaying,
+    hidePlaying,
   } from './editor'
   import Help from './help.svelte'
   import { icons } from './icons'
@@ -38,9 +48,22 @@
   export let uploadImages: Props['uploadImages'] = undefined
   export let overridePreview: Props['overridePreview'] = undefined
   export let maxLength: NonNullable<Props['maxLength']> = Infinity
+  export let tomatoInfo: any
+  export let playingUuid: string | undefined
+
+  $: if (playingUuid) {
+    console.log('reactive2', playingUuid)
+    showPlaying(playingUuid)
+  } else {
+    hidePlaying()
+  }
 
   $: mergedLocale = { ...en, ...locale }
-  const dispatch = createEventDispatcher<{ change: { value: string } }>()
+  const dispatch = createEventDispatcher<{
+    change: { value: string }
+    play: { value: string }
+    tomatoInfoChange: { value: any }
+  }>()
 
   $: actions = getBuiltinActions(mergedLocale, plugins, uploadImages)
   $: split = mode === 'split' || (mode === 'auto' && containerWidth >= 800)
@@ -172,6 +195,36 @@
       placeholder,
     })
 
+    const doc = editor.getDoc()
+
+    const tomatoCounts = getTomatoCounts(tomatoInfo)
+
+    addPlayIconViewport(doc, tomatoInfo, dispatch)
+
+    // 显示番茄数
+    Object.keys(tomatoCounts).forEach((line: string) => {
+      const val = tomatoCounts[line]
+      showTomatoCount(doc, +line, val.count, val.uuid)
+    })
+
+    editor.on('viewportChange', (ins) => {
+      // 增加行, 减行, 滚动都会引起viewportChange
+      // 需要更新lineIndex
+      console.log('viewport change')
+      addPlayIconViewport(ins.getDoc(), tomatoInfo, dispatch)
+    })
+
+    // 监听click事件
+    document
+      .querySelector('.CodeMirror-code')
+      ?.addEventListener('click', (e) => {
+        const btn = e.target?.closest('.linewidget-playbtn')
+        if (btn) {
+          const uuid = getUuidByClass(btn.className)
+          dispatch('play', { value: uuid })
+        }
+      })
+
     // https://github.com/codemirror/CodeMirror/issues/2428#issuecomment-39315423
     // https://github.com/codemirror/CodeMirror/issues/988#issuecomment-392232020
     editor.addKeyMap({
@@ -179,7 +232,30 @@
       'Shift-Tab': 'indentLess',
     })
 
-    editor.on('change', () => {
+    editor.on('change', (ins, change) => {
+      // console.log('change origin', change)
+      const {
+        to: { line },
+      } = change
+
+      // 在change事件里lineHandle里的styles还没有被渲染出来, 看起来是有延时的.
+      const lineText = ins.getLine(line)
+
+      if (change.origin === '+input') {
+        // 这里change后, doc.eachLine里输入行的样式获取不到
+        if (isHeader(lineText)) {
+          setTimeout(() => {
+            addPlayIconViewport(ins, tomatoInfo, dispatch)
+          }, 100)
+        }
+      }
+
+      if (change.origin === '+delete') {
+        if (!isHeader(lineText)) {
+          addPlayIconViewport(ins, tomatoInfo, dispatch)
+        }
+      }
+
       dispatch('change', { value: editor.getValue() })
     })
 

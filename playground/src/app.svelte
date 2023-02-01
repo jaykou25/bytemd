@@ -1,5 +1,6 @@
 <script lang="ts">
-  import markdownText from './text.md?raw'
+  import { Editor } from '../../packages/bytemd/src/index.ts'
+  import markdownText from './text-header.md?raw'
   import breaks from '@bytemd/plugin-breaks'
   import frontmatter from '@bytemd/plugin-frontmatter'
   import gemoji from '@bytemd/plugin-gemoji'
@@ -8,8 +9,8 @@
   import math from '@bytemd/plugin-math'
   import mediumZoom from '@bytemd/plugin-medium-zoom'
   import mermaid from '@bytemd/plugin-mermaid'
-  import { Editor } from 'bytemd'
-  import 'bytemd/dist/index.css'
+  // import { Editor } from 'bytemd'
+  // import 'bytemd/dist/index.css'
   import 'github-markdown-css'
   import 'highlight.js/styles/vs.css'
   // placed after highlight styles to override `code` padding
@@ -57,6 +58,18 @@
     'medium-zoom': true,
     mermaid: true,
   }
+
+  // let tomatoCounts = {
+  //   6: 3,
+  //   40: 2,
+  // }
+
+  let tomatoInfo = {
+    uuid1: { line: 0, count: 3 },
+    uuid2: { line: 2, count: 5 },
+  }
+
+  let playingUuid
 
   $: plugins = [
     enabled.breaks && breaks(),
@@ -108,6 +121,8 @@
     {mode}
     {plugins}
     {maxLength}
+    {tomatoInfo}
+    {playingUuid}
     placeholder={'Start writing with ByteMD'}
     locale={locales[localeKey]}
     uploadImages={(files) => {
@@ -122,6 +137,15 @@
     }}
     on:change={(e) => {
       value = e.detail.value
+    }}
+    on:play={(e) => {
+      console.log('play', e.detail.value)
+      playingUuid = e.detail.value
+
+      setTimeout(() => playingUuid = '', 3000)
+    }}
+    on:tomatoInfoChange={(e) => {
+      console.log('infochange', e.detail.value)
     }}
   />
 </div>

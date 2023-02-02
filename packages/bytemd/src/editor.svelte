@@ -8,16 +8,13 @@
     findStartIndex,
     getBuiltinActions,
     handleImageUpload,
-    addPlayIconViewport,
     isHeader,
-    isHeaderByStyle,
-    addPlayIcon,
-    hasPlayWidget,
-    showTomatoCount,
-    getTomatoCounts,
     getUuidByClass,
     showPlaying,
     hidePlaying,
+    syncTomatoWidget,
+    updateTomatoInfoByViewportChange,
+    syncTomatoCount,
   } from './editor'
   import Help from './help.svelte'
   import { icons } from './icons'
@@ -48,21 +45,15 @@
   export let uploadImages: Props['uploadImages'] = undefined
   export let overridePreview: Props['overridePreview'] = undefined
   export let maxLength: NonNullable<Props['maxLength']> = Infinity
-  export let tomatoInfo: any
+  export let tomatoLineInfo: any
+  export let tomatoCountInfo: any
   export let playingUuid: string | undefined
-
-  $: if (playingUuid) {
-    console.log('reactive2', playingUuid)
-    showPlaying(playingUuid)
-  } else {
-    hidePlaying()
-  }
 
   $: mergedLocale = { ...en, ...locale }
   const dispatch = createEventDispatcher<{
     change: { value: string }
     play: { value: string }
-    tomatoInfoChange: { value: any }
+    tomatoLineInfoChange: { value: any }
   }>()
 
   $: actions = getBuiltinActions(mergedLocale, plugins, uploadImages)
@@ -107,6 +98,20 @@
 
     return { edit, preview }
   })()
+
+  $: if (playingUuid) {
+    showPlaying(playingUuid)
+  } else {
+    hidePlaying()
+  }
+
+  $: if (editor) {
+    syncTomatoWidget(editor.getDoc(), tomatoLineInfo, tomatoCountInfo)
+  }
+
+  $: if (editor) {
+    syncTomatoCount(tomatoCountInfo)
+  }
 
   $: context = (() => {
     const context: BytemdEditorContext = {
@@ -197,21 +202,12 @@
 
     const doc = editor.getDoc()
 
-    const tomatoCounts = getTomatoCounts(tomatoInfo)
-
-    addPlayIconViewport(doc, tomatoInfo, dispatch)
-
-    // 显示番茄数
-    Object.keys(tomatoCounts).forEach((line: string) => {
-      const val = tomatoCounts[line]
-      showTomatoCount(doc, +line, val.count, val.uuid)
-    })
+    syncTomatoWidget(doc, tomatoLineInfo, tomatoCountInfo)
 
     editor.on('viewportChange', (ins) => {
       // 增加行, 减行, 滚动都会引起viewportChange
       // 需要更新lineIndex
-      console.log('viewport change')
-      addPlayIconViewport(ins.getDoc(), tomatoInfo, dispatch)
+      updateTomatoInfoByViewportChange(ins.getDoc(), tomatoLineInfo, dispatch)
     })
 
     // 监听click事件
@@ -233,26 +229,25 @@
     })
 
     editor.on('change', (ins, change) => {
-      // console.log('change origin', change)
       const {
         to: { line },
       } = change
 
-      // 在change事件里lineHandle里的styles还没有被渲染出来, 看起来是有延时的.
+      // 在change事件里lsyncTomatoWidget的styles还没有被渲染出来, 看起来是有延时的.
       const lineText = ins.getLine(line)
 
       if (change.origin === '+input') {
         // 这里change后, doc.eachLine里输入行的样式获取不到
         if (isHeader(lineText)) {
           setTimeout(() => {
-            addPlayIconViewport(ins, tomatoInfo, dispatch)
+            updateTomatoInfoByViewportChange(ins, tomatoLineInfo, dispatch)
           }, 100)
         }
       }
 
       if (change.origin === '+delete') {
         if (!isHeader(lineText)) {
-          addPlayIconViewport(ins, tomatoInfo, dispatch)
+          updateTomatoInfoByViewportChange(ins, tomatoLineInfo, dispatch)
         }
       }
 

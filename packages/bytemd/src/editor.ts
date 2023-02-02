@@ -365,97 +365,139 @@ export const isHeaderByStyle = (styles: string[] = []) => {
   return (styles || []).some((style) => style?.toString().includes('header'))
 }
 
-export const addPlayIcon = (doc, index: number, uuid?: string) => {
+export const addPlayIcon = (doc: any, index: number, uuid?: string) => {
   const icon =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path fill="none" d="M0 0h24v24H0z"/><path d="M7.752 5.439l10.508 6.13a.5.5 0 0 1 0 .863l-10.508 6.13A.5.5 0 0 1 7 18.128V5.871a.5.5 0 0 1 .752-.432z"/></svg>'
   const span = document.createElement('span')
   span.classList.add('playBtn')
   span.innerHTML = icon
   doc.addLineWidget(index, span, {
-    className: `linewidget-playbtn playbtn_${uuid || v1()}`,
+    className: `linewidget-playbtn tomatowidget playbtn_${uuid || v1()}`,
   })
 }
 
-export const hasPlayWidget = (widgets = []) => {
-  return widgets.some((widget) => widget.className.includes('playbtn'))
+export const hasPlayWidget = (widgets: any[] = []) => {
+  return widgets.some((widget) => widget.className.includes('tomatowidget'))
 }
 
-export const addPlayIconViewport = (
+// 显示和隐藏playicon和tomatoCount
+export const syncTomatoWidget = (
   doc: any,
-  tomatoInfo: any,
+  tomatoLineInfo: any,
+  tomatoCountInfo: any
+) => {
+  const lineUuidMap = reverseTomatoLineInfo(tomatoLineInfo)
+  // 隐藏
+  // dom的操作可能是异步的
+  document.querySelectorAll('.tomatowidget').forEach((node) => {
+    const uuid = getUuidByClass(node.className)
+    if (uuid) {
+      if (tomatoLineInfo[uuid] === undefined) {
+        node.remove()
+      }
+    }
+  })
+
+  // 显示
+  Object.keys(lineUuidMap).forEach((lineIndex) => {
+    const line = doc.getLineHandle(+lineIndex)
+
+    if (!hasPlayWidget(line.widgets)) {
+      const uuid = lineUuidMap[lineIndex]
+      addPlayIcon(doc, +lineIndex, uuid)
+
+      showTomatoCount(doc, +lineIndex, tomatoCountInfo[uuid], uuid)
+    }
+  })
+}
+
+export const updateTomatoInfoByViewportChange = (
+  doc: any,
+  tomatoLineInfo: any,
   dispatch: any
 ) => {
-  const tomatoCounts = getTomatoCounts(tomatoInfo)
-  let tomatoInfoChange = false
+  let tomatoLineInfoChange = false
+
   doc.eachLine((line: any) => {
     const lineIndex = doc.getLineNumber(line)
 
     if (lineIndex !== undefined) {
       // 如果行上有widgets, 更新行数
       if (hasPlayWidget(line.widgets)) {
-        const widgetClassName = line.widgets.find((widget) =>
-          widget.className.includes('playbtn')
+        const widgetClassName = line.widgets.find((widget: any) =>
+          widget.className.includes('tomatowidget')
         ).className
         const uuid = getUuidByClass(widgetClassName)
         if (uuid) {
-          const oldLine = tomatoInfo[uuid]?.line
+          const oldLine = tomatoLineInfo[uuid]
           if (oldLine !== undefined && oldLine !== lineIndex) {
-            tomatoInfo[uuid].line = lineIndex
-            tomatoInfoChange = true
+            tomatoLineInfo[uuid] = lineIndex
+            tomatoLineInfoChange = true
           }
         }
       }
 
       if (isHeaderByStyle(line.styles) && !hasPlayWidget(line.widgets)) {
-        const uuid = tomatoCounts[lineIndex]?.uuid
-        addPlayIcon(doc, lineIndex, uuid)
+        const uuid = v1()
+        tomatoLineInfo[uuid] = lineIndex
+        tomatoLineInfoChange = true
       }
 
       // 删除的情况不需要考虑style, 只要不符合header格式都要删除. 因为在删除模式下header的样式会保留
       if (!isHeader(line.text) && hasPlayWidget(line.widgets)) {
-        line.widgets.forEach((widget) => {
-          if (widget.className.includes('playbtn')) {
-            widget.node.remove()
-
-            const uuid = getUuidByClass(widget.className)
-            if (uuid) {
-              delete tomatoInfo[uuid]
-              tomatoInfoChange = true
-            }
-          }
-
-          if (widget.className.includes('tomatocount')) {
-            widget.node.remove()
-          }
-        })
+        const widget = line.widgets.find((widget: any) =>
+          widget.className.includes('tomatowidget')
+        )
+        const uuid = getUuidByClass(widget.className)
+        if (uuid) {
+          delete tomatoLineInfo[uuid]
+          tomatoLineInfoChange = true
+        }
       }
     }
   })
 
-  if (tomatoInfoChange) {
-    dispatch('tomatoInfoChange', { value: tomatoInfo })
+  if (tomatoLineInfoChange) {
+    dispatch('tomatoLineInfoChange', { value: tomatoLineInfo })
   }
 }
 
 export const showTomatoCount = (
-  doc,
+  doc: any,
   index: number,
   count: number,
   uuid: string
 ) => {
   const span = document.createElement('span')
   span.classList.add('tomatoCount')
-  span.innerText = count.toString()
+  if (count) {
+    span.innerText = count.toString()
+  }
   doc.addLineWidget(index, span, {
-    className: `linewidget-tomatocount tomatocount_${uuid}`,
+    className: `linewidget-tomatocount tomatowidget tomatocount_${uuid}`,
   })
 }
 
-export const getTomatoCounts = (info) => {
+export const syncTomatoCount = (tomatoCountInfo: any) => {
+  Object.keys(tomatoCountInfo).forEach((uuid) => {
+    const span: HTMLElement | null = document.querySelector(
+      `.tomatocount_${uuid} > span`
+    )
+    if (span) {
+      const text = span.innerText
+      const count = tomatoCountInfo[uuid].toString()
+      if (text !== count) {
+        span.innerText = count
+      }
+    }
+  })
+}
+
+export const reverseTomatoLineInfo = (info: any) => {
   const result: any = {}
   Object.keys(info).forEach((uuid: string) => {
-    const val = info[uuid]
-    result[val.line] = { uuid, count: val.count }
+    const line = info[uuid]
+    result[line] = uuid
   })
 
   return result

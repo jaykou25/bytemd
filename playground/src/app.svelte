@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Editor } from '../../packages/bytemd/src/index.ts'
+  // import { Editor } from '../../packages/bytemd/src/index.ts'
   import markdownText from './text-header.md?raw'
   import breaks from '@bytemd/plugin-breaks'
   import frontmatter from '@bytemd/plugin-frontmatter'
@@ -9,8 +9,8 @@
   import math from '@bytemd/plugin-math'
   import mediumZoom from '@bytemd/plugin-medium-zoom'
   import mermaid from '@bytemd/plugin-mermaid'
-  // import { Editor } from 'bytemd'
-  // import 'bytemd/dist/index.css'
+  import { Editor } from 'bytemd'
+  import 'bytemd/dist/index.css'
   import 'github-markdown-css'
   import 'highlight.js/styles/vs.css'
   // placed after highlight styles to override `code` padding
@@ -43,7 +43,7 @@
     })
   )
 
-  let value = markdownText
+  let value = localStorage.getItem('mdText') || markdownText
   let mode = 'auto'
   let localeKey = 'en'
   let maxLength: number
@@ -59,15 +59,19 @@
     mermaid: true,
   }
 
-  // let tomatoCounts = {
-  //   6: 3,
-  //   40: 2,
-  // }
+  let tomatoLineInfo = localStorage.getItem('tomatoLineInfo')
+    ? JSON.parse(localStorage.getItem('tomatoLineInfo'))
+    : {
+        uuid1: 0,
+        uuid2: 2,
+      }
 
-  let tomatoInfo = {
-    uuid1: { line: 0, count: 3 },
-    uuid2: { line: 2, count: 5 },
-  }
+  let tomatoCountInfo = localStorage.getItem('tomatoCountInfo')
+    ? JSON.parse(localStorage.getItem('tomatoCountInfo'))
+    : {
+        uuid1: 3,
+        uuid2: 5,
+      }
 
   let playingUuid
 
@@ -121,7 +125,8 @@
     {mode}
     {plugins}
     {maxLength}
-    {tomatoInfo}
+    {tomatoLineInfo}
+    {tomatoCountInfo}
     {playingUuid}
     placeholder={'Start writing with ByteMD'}
     locale={locales[localeKey]}
@@ -137,15 +142,32 @@
     }}
     on:change={(e) => {
       value = e.detail.value
+
+      localStorage.setItem('mdText', value)
     }}
     on:play={(e) => {
       console.log('play', e.detail.value)
-      playingUuid = e.detail.value
+      const uuid = e.detail.value
+      playingUuid = uuid
 
-      setTimeout(() => playingUuid = '', 3000)
+      setTimeout(() => {
+        playingUuid = ''
+        // 更新tomatoCountInfo
+        const copy = { ...tomatoCountInfo }
+        if (copy[uuid]) {
+          copy[uuid] += 1
+        } else {
+          copy[uuid] = 1
+        }
+        tomatoCountInfo = copy
+        localStorage.setItem('tomatoCountInfo', JSON.stringify(copy))
+      }, 2000)
     }}
-    on:tomatoInfoChange={(e) => {
-      console.log('infochange', e.detail.value)
+    on:tomatoLineInfoChange={(e) => {
+      console.log('LineInfoChange', e.detail.value)
+
+      tomatoLineInfo = { ...e.detail.value }
+      localStorage.setItem('tomatoLineInfo', JSON.stringify(e.detail.value))
     }}
   />
 </div>

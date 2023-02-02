@@ -74,6 +74,7 @@ importers:
       '@types/hast': ^2.3.4
       '@types/lodash-es': ^4.17.6
       '@types/mdast': ^3.0.10
+      '@types/uuid': ^9.0.0
       codemirror-ssr: ^0.65.0
       hast-util-sanitize: ^4.1.0
       lodash-es: ^4.17.21
@@ -112,6 +113,7 @@ importers:
       word-count: 0.2.2
     devDependencies:
       '@primer/css': 15.2.0
+      '@types/uuid': 9.0.0
 
   packages/plugin-breaks:
     specifiers:
@@ -2596,6 +2598,10 @@ packages:
   /@types/unist/2.0.6:
     resolution: {integrity: sha512-PBjIUxZHOuj0R15/xuwJYjFi+KZdNFrehocChv4g5hu6aFroHue8m0lBP0POdK2nKzbw0cgV1mws8+V/JAcEkQ==}
     dev: false
+
+  /@types/uuid/9.0.0:
+    resolution: {integrity: sha512-kr90f+ERiQtKWMz5rP32ltJ/BtULDI5RVO0uavn1HQUOwjx0R1h0rnDYNL0CepF1zL5bSY6FISAfd9tOdDhU5Q==}
+    dev: true
 
   /@types/yargs-parser/21.0.0:
     resolution: {integrity: sha512-iO9ZQHkZxHn4mSakYV0vFHAVDyEOIJQrV2uZ06HxEPcx+mt8swXoZHIbaaJ2crJYFfErySgktuTZ3BeLz+XmFA==}

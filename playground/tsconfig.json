@@ -1,7 +1,12 @@
 {
   "extends": "../tsconfig-base.json",
   "include": ["src", "src/locales/*.json"],
-  "compilerOptions": { "rootDir": "src", "outDir": "dist" },
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "skipLibCheck": true,
+    "noImplicitAny": false
+  },
   "references": [
     { "path": "../packages/bytemd" },
     { "path": "../packages/plugin-breaks" },

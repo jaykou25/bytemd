@@ -15,6 +15,7 @@
     syncTomatoWidget,
     updateTomatoInfoByViewportChange,
     syncTomatoCount,
+    hasCountWidget,
   } from './editor'
   import Help from './help.svelte'
   import { icons } from './icons'
@@ -198,11 +199,14 @@
       }, // https://github.com/codemirror/CodeMirror/blob/c955a0fb02d9a09cf98b775cb94589e4980303c1/mode/markdown/index.html#L359
       ...editorConfig,
       placeholder,
+      lineNumbers: true,
     })
 
     const doc = editor.getDoc()
 
     syncTomatoWidget(doc, tomatoLineInfo, tomatoCountInfo)
+    // 对没有uuid的header初始化
+    updateTomatoInfoByViewportChange(doc, tomatoLineInfo, dispatch)
 
     editor.on('viewportChange', (ins) => {
       // 增加行, 减行, 滚动都会引起viewportChange
@@ -228,8 +232,81 @@
       'Shift-Tab': 'indentLess',
     })
 
+    editor.on('beforeChange', (ins, change) => {
+      const {
+        from: { line: fromLine, ch: fromCh },
+        to: { line, ch },
+      } = change
+
+      // !仅处理多行删除. 单行删除的放在change事件里
+      // 多行删除要考虑末行dom移除问题.
+      // 1. 首行全删除 -> 末行到0位 :末行不会删dom
+      //              -> 末行非0位 :末行会删!
+      // 2. 首行没全删除 -> 末行都会删!
+      console.log('before change', change)
+      if (fromLine !== line) {
+        let delHeader = false
+        let hasTomato = false
+        for (let i = fromLine; i <= line; i++) {
+          const text = ins.getLine(i)
+          if (isHeader(text)) {
+            delHeader = true
+            break
+          }
+        }
+
+        for (let i = fromLine; i <= line; i++) {
+          const lineHandle = ins.getLineHandle(i)
+
+          // 删除开始那行
+          if (i === fromLine) {
+            const text = ins.getRange(
+              { line: i, ch: 0 },
+              { line: i, ch: fromCh }
+            )
+
+            if (!isHeader(text) && hasCountWidget(lineHandle.widgets)) {
+              hasTomato = true
+              break
+            }
+          } else if (i === line) {
+            // 删除末尾那行
+            // 因为
+            const text = ins.getRange(
+              { line: i, ch },
+              { line: i, ch: ins.getLine(i).length }
+            )
+
+            if (!isHeader(text) && hasCountWidget(lineHandle.widgets)) {
+              hasTomato = true
+              break
+            }
+          } else {
+            if (hasCountWidget(lineHandle.widgets)) {
+              hasTomato = true
+              break
+            }
+          }
+        }
+
+        if (hasTomato) {
+          const confirmDel = confirm('包含tomato count, 确认删除吗?')
+          if (confirmDel) {
+            if (delHeader) {
+              updateTomatoInfoByViewportChange(ins, tomatoLineInfo, dispatch)
+            }
+          } else {
+            change.cancel()
+          }
+        }
+      }
+
+      // 还要处理会换行的删除: 光标在ch:0位置, 同时上一行有内容
+    })
+
     editor.on('change', (ins, change) => {
       const {
+        from: { line: fromLine },
         to: { line },
       } = change
 
@@ -246,8 +323,12 @@
       }
 
       if (change.origin === '+delete') {
-        if (!isHeader(lineText)) {
-          updateTomatoInfoByViewportChange(ins, tomatoLineInfo, dispatch)
+        // 只考虑单行删除
+        if (fromLine === line) {
+          const text = ins.getLine(line)
+          if (!isHeader(text)) {
+            updateTomatoInfoByViewportChange(ins, tomatoLineInfo, dispatch)
+          }
         }
       }
 

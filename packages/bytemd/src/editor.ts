@@ -380,6 +380,19 @@ export const hasPlayWidget = (widgets: any[] = []) => {
   return widgets.some((widget) => widget.className.includes('tomatowidget'))
 }
 
+export const hasCountWidget = (widgets: any[] = []) => {
+  const widget = widgets.find((widget) =>
+    widget.className.includes('tomatocount')
+  )
+  if (widget) {
+    const count = widget.node.innerText
+
+    return !!count && +count > 0
+  }
+
+  return false
+}
+
 // 显示和隐藏playicon和tomatoCount
 export const syncTomatoWidget = (
   doc: any,
@@ -402,7 +415,7 @@ export const syncTomatoWidget = (
   Object.keys(lineUuidMap).forEach((lineIndex) => {
     const line = doc.getLineHandle(+lineIndex)
 
-    if (!hasPlayWidget(line.widgets)) {
+    if (line && !hasPlayWidget(line.widgets)) {
       const uuid = lineUuidMap[lineIndex]
       addPlayIcon(doc, +lineIndex, uuid)
 
@@ -418,8 +431,10 @@ export const updateTomatoInfoByViewportChange = (
 ) => {
   let tomatoLineInfoChange = false
 
+  let lineTotal = 0
   doc.eachLine((line: any) => {
     const lineIndex = doc.getLineNumber(line)
+    lineTotal = lineIndex
 
     if (lineIndex !== undefined) {
       // 如果行上有widgets, 更新行数
@@ -428,6 +443,7 @@ export const updateTomatoInfoByViewportChange = (
           widget.className.includes('tomatowidget')
         ).className
         const uuid = getUuidByClass(widgetClassName)
+        console.log('有widgets')
         if (uuid) {
           const oldLine = tomatoLineInfo[uuid]
           if (oldLine !== undefined && oldLine !== lineIndex) {
@@ -438,6 +454,7 @@ export const updateTomatoInfoByViewportChange = (
       }
 
       if (isHeaderByStyle(line.styles) && !hasPlayWidget(line.widgets)) {
+        console.log('没有widgets')
         const uuid = v1()
         tomatoLineInfo[uuid] = lineIndex
         tomatoLineInfoChange = true
@@ -454,6 +471,14 @@ export const updateTomatoInfoByViewportChange = (
           tomatoLineInfoChange = true
         }
       }
+    }
+  })
+
+  // 删除掉超出行总数的tomatoLineInfo
+  Object.keys(tomatoLineInfo).forEach((uuid) => {
+    if (tomatoLineInfo[uuid] > lineTotal) {
+      delete tomatoLineInfo[uuid]
+      tomatoLineInfoChange = true
     }
   })
 

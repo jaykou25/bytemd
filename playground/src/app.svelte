@@ -1,5 +1,5 @@
 <script lang="ts">
-  // import { Editor } from '../../packages/bytemd/src/index.ts'
+  import { Editor } from '../../packages/bytemd/src/index.ts'
   import markdownText from './text-header.md?raw'
   import breaks from '@bytemd/plugin-breaks'
   import frontmatter from '@bytemd/plugin-frontmatter'
@@ -9,8 +9,8 @@
   import math from '@bytemd/plugin-math'
   import mediumZoom from '@bytemd/plugin-medium-zoom'
   import mermaid from '@bytemd/plugin-mermaid'
-  import { Editor } from 'bytemd'
-  import 'bytemd/dist/index.css'
+  // import { Editor } from 'bytemd'
+  // import 'bytemd/dist/index.css'
   import 'github-markdown-css'
   import 'highlight.js/styles/vs.css'
   // placed after highlight styles to override `code` padding
@@ -44,7 +44,7 @@
   )
 
   let value = localStorage.getItem('mdText') || markdownText
-  let mode = 'auto'
+  let mode = 'tab'
   let localeKey = 'en'
   let maxLength: number
 

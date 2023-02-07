@@ -1,3 +1,5 @@
+import './addon/confirm.css'
+import useConfirm from './addon/confirm.js'
 import { icons } from './icons'
 import type {
   BytemdPlugin,
@@ -9,6 +11,8 @@ import type {
 import type { Editor, Position } from 'codemirror'
 import type CodeMirror from 'codemirror'
 import factory from 'codemirror-ssr'
+import 'codemirror-ssr/addon/dialog/dialog.css'
+import useDialog from 'codemirror-ssr/addon/dialog/dialog.js'
 import usePlaceholder from 'codemirror-ssr/addon/display/placeholder.js'
 import useContinuelist from 'codemirror-ssr/addon/edit/continuelist.js'
 import useOverlay from 'codemirror-ssr/addon/mode/overlay.js'
@@ -30,6 +34,8 @@ export function createCodeMirror() {
   useYaml(codemirror)
   useYamlFrontmatter(codemirror)
   useContinuelist(codemirror)
+  useDialog(codemirror)
+  useConfirm(codemirror)
   return codemirror
 }
 
@@ -393,6 +399,19 @@ export const hasCountWidget = (widgets: any[] = []) => {
   return false
 }
 
+export const getTomatoCount = (widgets: any[] = []) => {
+  const widget = widgets.find((widget) =>
+    widget.className.includes('tomatocount')
+  )
+  if (widget) {
+    const count = widget.node.innerText
+
+    return count
+  }
+
+  return 0
+}
+
 // 显示和隐藏playicon和tomatoCount
 export const syncTomatoWidget = (
   doc: any,
@@ -556,4 +575,62 @@ export const hidePlaying = () => {
 
   const codeBody = document.querySelector('.CodeMirror-code')
   codeBody?.classList.remove('playing')
+}
+
+// 选择多行后获取其信息, 是否有tomatoCount, 是否有header格式
+export const getMultiLineInfo = (
+  editor: any,
+  change: any
+): { hasTomatoCount: boolean; tomatoLineInfo: any[]; hasHeader: boolean } => {
+  const {
+    from: { line: fromLine, ch: fromCh },
+    to: { line, ch },
+  } = change
+
+  let hasTomatoCount = false
+  const tomatoLineInfo = []
+  let hasHeader = false
+
+  for (let i = fromLine; i <= line; i++) {
+    const lineHandle = editor.getLineHandle(i)
+    const lineText = lineHandle.text
+    if (isHeader(lineText)) {
+      hasHeader = true
+    }
+
+    if (i === fromLine) {
+      // 首行
+      const text = editor.getRange({ line: i, ch: 0 }, { line: i, ch: fromCh })
+
+      if (!isHeader(text) && hasCountWidget(lineHandle.widgets)) {
+        hasTomatoCount = true
+        console.log(`${i} line:`, lineHandle.widgets)
+        const count = getTomatoCount(lineHandle.widgets)
+
+        tomatoLineInfo.push({ line: i, text: lineHandle.text, count })
+      }
+    } else if (i === line) {
+      // 末行
+      // 末行只有一种情况可以忽略, 即ch为0并且第一行全删
+      if (ch === 0 && fromCh === 0) {
+        // do noting
+      } else {
+        const text = lineHandle.text
+        if (isHeader(text) && hasCountWidget(lineHandle.widgets)) {
+          hasTomatoCount = true
+          const count = getTomatoCount(lineHandle.widgets)
+          tomatoLineInfo.push({ line: i, text: lineHandle.text, count })
+        }
+      }
+    } else {
+      // 中间行
+      if (hasCountWidget(lineHandle.widgets)) {
+        hasTomatoCount = true
+        const count = getTomatoCount(lineHandle.widgets)
+        tomatoLineInfo.push({ line: i, text: lineHandle.text, count })
+      }
+    }
+  }
+
+  return { hasTomatoCount, tomatoLineInfo, hasHeader }
 }

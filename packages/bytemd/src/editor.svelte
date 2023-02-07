@@ -16,6 +16,7 @@
     updateTomatoInfoByViewportChange,
     syncTomatoCount,
     hasCountWidget,
+    getMultiLineInfo,
   } from './editor'
   import Help from './help.svelte'
   import { icons } from './icons'
@@ -232,76 +233,78 @@
       'Shift-Tab': 'indentLess',
     })
 
+    editor.on('focus', (ins, e) => {})
+
+    editor.on('cursorActivity', (ins) => {
+      if (ins.state.confirmationOpen) {
+        ins.closeConfirmation()
+      }
+    })
+
+    editor.on('keydown', (ins, e) => {
+      if (e.code === 'Enter' && ins.state.confirmationOpen) {
+        // codemirror.e_stop(e)
+        codemirror.e_preventDefault(e)
+      }
+    })
+
     editor.on('beforeChange', (ins, change) => {
       const {
         from: { line: fromLine, ch: fromCh },
         to: { line, ch },
+        text,
+        origin,
       } = change
 
-      // !仅处理多行删除. 单行删除的放在change事件里
+      if (ins.state.isConfirm) {
+        ins.state.isConfirm = false
+        return
+      }
+
+      // !处理行上有番茄的情况
       // 多行删除要考虑末行dom移除问题.
       // 1. 首行全删除 -> 末行到0位 :末行不会删dom
       //              -> 末行非0位 :末行会删!
       // 2. 首行没全删除 -> 末行都会删!
-      console.log('before change', change)
-      if (fromLine !== line) {
-        let delHeader = false
-        let hasTomato = false
-        for (let i = fromLine; i <= line; i++) {
-          const text = ins.getLine(i)
-          if (isHeader(text)) {
-            delHeader = true
-            break
-          }
-        }
+      const { hasHeader, hasTomatoCount, tomatoLineInfo } = getMultiLineInfo(
+        ins,
+        change
+      )
 
-        for (let i = fromLine; i <= line; i++) {
-          const lineHandle = ins.getLineHandle(i)
+      if (hasTomatoCount) {
+        const lines = tomatoLineInfo
+          .map(
+            (info, index) =>
+              `<tr><td>${index + 1}</td><td class="t-text">${
+                info.text
+              }</td><td>${info.count}</td></tr>`
+          )
+          .join('')
+        const confirmText = `<table><tr><td class="t-index">序号</td><td class="t-text">段落内容</td><td class="t-count">蕃茄数</td></tr>${lines}</table>`
 
-          // 删除开始那行
-          if (i === fromLine) {
-            const text = ins.getRange(
-              { line: i, ch: 0 },
-              { line: i, ch: fromCh }
+        ins.openConfirmation(confirmText, {
+          title: '以下段落存在番茄数据',
+          footerTitle: '此操作会移除以上段落上的番茄数据, 确认要执行此操作吗?',
+          onConfirm: () => {
+            console.log('confirm')
+            ins.state.isConfirm = true
+            ins.replaceRange(
+              text[0],
+              { line: fromLine, ch: fromCh },
+              { line, ch },
+              origin
             )
-
-            if (!isHeader(text) && hasCountWidget(lineHandle.widgets)) {
-              hasTomato = true
-              break
-            }
-          } else if (i === line) {
-            // 删除末尾那行
-            // 因为
-            const text = ins.getRange(
-              { line: i, ch },
-              { line: i, ch: ins.getLine(i).length }
-            )
-
-            if (!isHeader(text) && hasCountWidget(lineHandle.widgets)) {
-              hasTomato = true
-              break
-            }
-          } else {
-            if (hasCountWidget(lineHandle.widgets)) {
-              hasTomato = true
-              break
-            }
-          }
-        }
-
-        if (hasTomato) {
-          const confirmDel = confirm('包含tomato count, 确认删除吗?')
-          if (confirmDel) {
-            if (delHeader) {
+            setTimeout(() => {
               updateTomatoInfoByViewportChange(ins, tomatoLineInfo, dispatch)
-            }
-          } else {
-            change.cancel()
-          }
-        }
-      }
+            }, 50)
+          },
+        })
 
-      // 还要处理会换行的删除: 光标在ch:0位置, 同时上一行有内容
+        change.cancel()
+      } else {
+        if (hasHeader)
+          updateTomatoInfoByViewportChange(ins, tomatoLineInfo, dispatch)
+      }
     })
 
     editor.on('change', (ins, change) => {
@@ -322,15 +325,15 @@
         }
       }
 
-      if (change.origin === '+delete') {
-        // 只考虑单行删除
-        if (fromLine === line) {
-          const text = ins.getLine(line)
-          if (!isHeader(text)) {
-            updateTomatoInfoByViewportChange(ins, tomatoLineInfo, dispatch)
-          }
-        }
-      }
+      // if (change.origin === '+delete') {
+      //   // 只考虑单行删除
+      //   if (fromLine === line) {
+      //     const text = ins.getLine(line)
+      //     if (!isHeader(text)) {
+      //       updateTomatoInfoByViewportChange(ins, tomatoLineInfo, dispatch)
+      //     }
+      //   }
+      // }
 
       dispatch('change', { value: editor.getValue() })
     })

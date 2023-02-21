@@ -12,7 +12,8 @@
     "postinstall": "node scripts/postinstall.mjs && pnpm format && sort-json packages/*/locales/*.json",
     "pub": "pnpm build && lerna publish",
     "style": "prettier --check '**/*.{ts,tsx,json,md,svelte}'",
-    "test": "vitest"
+    "test": "vitest",
+    "cypress:open": "cypress open"
   },
   "prettier": {
     "pluginSearchDirs": [
@@ -32,6 +33,7 @@
     "@types/lodash-es": "^4.17.7",
     "@types/resolve": "^1.20.2",
     "conventional-changelog-cli": "^2.2.2",
+    "cypress": "^12.6.0",
     "decode-named-character-reference": "^1.0.2",
     "execa": "^7.1.1",
     "fast-glob": "^3.2.12",

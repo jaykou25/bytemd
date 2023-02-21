@@ -141,27 +141,28 @@
       )
     }}
     on:change={(e) => {
+      console.log('onchange')
       value = e.detail.value
 
       localStorage.setItem('mdText', value)
     }}
     on:play={(e) => {
       console.log('play', e.detail.value)
-      const uuid = e.detail.value
+      const { uuid } = e.detail.value
       playingUuid = uuid
 
-      setTimeout(() => {
-        playingUuid = ''
-        // 更新tomatoCountInfo
-        const copy = { ...tomatoCountInfo }
-        if (copy[uuid]) {
-          copy[uuid] += 1
-        } else {
-          copy[uuid] = 1
-        }
-        tomatoCountInfo = copy
-        localStorage.setItem('tomatoCountInfo', JSON.stringify(copy))
-      }, 2000)
+      // setTimeout(() => {
+      //   playingUuid = ''
+      //   // 更新tomatoCountInfo
+      //   const copy = { ...tomatoCountInfo }
+      //   if (copy[uuid]) {
+      //     copy[uuid] += 1
+      //   } else {
+      //     copy[uuid] = 1
+      //   }
+      //   tomatoCountInfo = copy
+      //   localStorage.setItem('tomatoCountInfo', JSON.stringify(copy))
+      // }, 2000)
     }}
     on:tomatoLineInfoChange={(e) => {
       console.log('LineInfoChange', e.detail.value)

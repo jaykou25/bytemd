@@ -22,7 +22,7 @@ function stripComment(str: string) {
   return str.replace(/<\!--.*?-->/g, '')
 }
 
-const heading = '# title'
+const heading = '# title \n ## 2 \n ### 3'
 const headingHtml = '<h1>title</h1>'
 const paragraph = 'abc'
 const paragraphHtml = '<p>abc</p>'
@@ -32,12 +32,20 @@ beforeEach(() => {
 })
 
 test('value', async () => {
-  const $ = render(Editor, { value: heading })
+  const $ = render(Editor, {
+    value: heading,
+    tomatoLineInfo: {},
+    tomatoCountInfo: {},
+    playingUuid: '',
+  })
   const onChange = vi.fn()
+  const onTomatoLineInfoChange = (e: any) => {
+    $.component.$set({ tomatoLineInfo: { ...e.detail.value } })
+  }
   $.component.$on('change', onChange)
+  $.component.$on('tomatoLineInfoChange', onTomatoLineInfoChange)
   await act()
   expect(getCodeMirror($).getValue()).toEqual(heading)
-
   // // change from UI
   // getCodeMirror($).setValue(paragraph);
   // await act();
@@ -53,7 +61,11 @@ test('value', async () => {
 })
 
 test('preview debounce', async () => {
-  const $ = render(Editor, {})
+  const $ = render(Editor, {
+    tomatoLineInfo: {},
+    tomatoCountInfo: {},
+    playingUuid: '',
+  })
   $.component.$set({ value: paragraph })
   expect(
     stripComment($.container.querySelector('.markdown-body').innerHTML)

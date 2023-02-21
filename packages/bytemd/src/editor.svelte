@@ -47,8 +47,8 @@
   export let uploadImages: Props['uploadImages'] = undefined
   export let overridePreview: Props['overridePreview'] = undefined
   export let maxLength: NonNullable<Props['maxLength']> = Infinity
-  export let tomatoLineInfo: any
-  export let tomatoCountInfo: any
+  export let tomatoLineInfo: any = {}
+  export let tomatoCountInfo: any = {}
   export let playingUuid: string | undefined
 
   $: mergedLocale = { ...en, ...locale }
@@ -207,6 +207,7 @@
 
     syncTomatoWidget(doc, tomatoLineInfo, tomatoCountInfo)
     // 对没有uuid的header初始化
+    console.log('svelte onmount:', { value, tomatoLineInfo })
     updateTomatoInfoByViewportChange(doc, tomatoLineInfo, dispatch)
 
     editor.on('viewportChange', (ins) => {
@@ -222,7 +223,9 @@
         const btn = e.target?.closest('.linewidget-playbtn')
         if (btn) {
           const uuid = getUuidByClass(btn.className)
-          dispatch('play', { value: uuid })
+          const text =
+            btn.parentNode.querySelector('.CodeMirror-line').innerText
+          dispatch('play', { value: { uuid, text } })
         }
       })
 
@@ -261,6 +264,8 @@
         return
       }
 
+      console.log('before change', change)
+
       // !处理行上有番茄的情况
       // 多行删除要考虑末行dom移除问题.
       // 1. 首行全删除 -> 末行到0位 :末行不会删dom
@@ -283,8 +288,8 @@
         const confirmText = `<table><tr><td class="t-index">序号</td><td class="t-text">段落内容</td><td class="t-count">蕃茄数</td></tr>${lines}</table>`
 
         ins.openConfirmation(confirmText, {
-          title: '以下段落存在番茄数据',
-          footerTitle: '此操作会移除以上段落上的番茄数据, 确认要执行此操作吗?',
+          title: '此操作会移除段落上的番茄数据',
+          footerTitle: '确认要执行此操作吗?',
           onConfirm: () => {
             console.log('confirm')
             ins.state.isConfirm = true
@@ -336,6 +341,7 @@
       // }
 
       dispatch('change', { value: editor.getValue() })
+      console.log('selvte dispatch change', { value: editor.getValue() })
     })
 
     const updateBlockPositions = throttle(() => {

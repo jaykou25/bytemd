@@ -2,10 +2,12 @@
 {
   "extends": "../../tsconfig-base.json",
   "include": ["src"],
+  "exclude": ["src/addon/*.js"],
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "svelte",
     "composite": false,
-    "emitDeclarationOnly": false
+    "emitDeclarationOnly": false,
+    "noImplicitAny": false
   }
 }

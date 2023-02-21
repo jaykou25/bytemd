@@ -46,7 +46,7 @@ import { build } from 'vite'
         externalDeps.push(
           ...Object.keys({
             ...pkg.peerDependencies,
-            ...pkg.dependencies,
+            // ...pkg.dependencies,
           })
         )
       } else if (format === 'cjs') {

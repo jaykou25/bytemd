@@ -431,6 +431,7 @@ export const syncTomatoWidget = (
   })
 
   // 显示
+  console.log('syncTomatoWidget', { lineUuidMap })
   Object.keys(lineUuidMap).forEach((lineIndex) => {
     const line = doc.getLineHandle(+lineIndex)
 
@@ -462,7 +463,6 @@ export const updateTomatoInfoByViewportChange = (
           widget.className.includes('tomatowidget')
         ).className
         const uuid = getUuidByClass(widgetClassName)
-        console.log('有widgets')
         if (uuid) {
           const oldLine = tomatoLineInfo[uuid]
           if (oldLine !== undefined && oldLine !== lineIndex) {
@@ -472,8 +472,9 @@ export const updateTomatoInfoByViewportChange = (
         }
       }
 
+      console.log('newnew', line.styles, line)
+
       if (isHeaderByStyle(line.styles) && !hasPlayWidget(line.widgets)) {
-        console.log('没有widgets')
         const uuid = v1()
         tomatoLineInfo[uuid] = lineIndex
         tomatoLineInfoChange = true
@@ -502,7 +503,10 @@ export const updateTomatoInfoByViewportChange = (
   })
 
   if (tomatoLineInfoChange) {
-    dispatch('tomatoLineInfoChange', { value: tomatoLineInfo })
+    setTimeout(() => {
+      dispatch('tomatoLineInfoChange', { value: tomatoLineInfo })
+      console.log('svelte dispatch lineinfo:', tomatoLineInfo)
+    })
   }
 }
 
@@ -577,25 +581,69 @@ export const hidePlaying = () => {
   codeBody?.classList.remove('playing')
 }
 
-// 选择多行后获取其信息, 是否有tomatoCount, 是否有header格式
+// 在beforeChange事件里, 利用change对象, 来得到将会变成的文字内容
+const getLineTextAfter = (textBefore: string, change: any) => {
+  let textAfter = textBefore
+
+  return textAfter
+}
+
+/*
+  根据editor的change对象来获取信息, 是否有tomatoCount, 是否有header格式等.
+  单行跟多行先分开来处理
+  单行:
+  1. 删除 (origin: +delete, text: [''])
+  2. 输入文字英文(origin: +input, text: ['8'])
+  3. 输入文字中文会触发两次beforeChange
+    第一次: origin: *compose, text: [' ']
+    第二次: origin: *compose, text: ['中国']
+  4. 粘贴文字(origin: paste, text: ['## 8'])
+*/
+
 export const getMultiLineInfo = (
   editor: any,
   change: any
-): { hasTomatoCount: boolean; tomatoLineInfo: any[]; hasHeader: boolean } => {
+): {
+  hasTomatoCount: boolean
+  tomatoLineInfo: any[]
+  hasHeader: boolean
+  headerWillChanged: boolean
+} => {
   const {
     from: { line: fromLine, ch: fromCh },
     to: { line, ch },
   } = change
 
   let hasTomatoCount = false
-  const tomatoLineInfo = []
+  const tomatoLineInfo: any[] = []
   let hasHeader = false
+  let headerWillChanged = false
 
   for (let i = fromLine; i <= line; i++) {
     const lineHandle = editor.getLineHandle(i)
+    // !这个lineText是change前的!!
     const lineText = lineHandle.text
     if (isHeader(lineText)) {
       hasHeader = true
+    }
+
+    // 单行删除情况
+    if (fromLine === line) {
+      const textAfter = getLineTextAfter(lineText, change)
+      if (
+        (isHeader(lineText) && !isHeader(textAfter)) ||
+        (!isHeader(lineText) && isHeader(textAfter))
+      ) {
+        headerWillChanged = true
+
+        if (hasCountWidget(lineHandle.widgets)) {
+          hasTomatoCount = true
+          const count = getTomatoCount(lineHandle.widgets)
+
+          tomatoLineInfo.push({ line: i, text: lineText, count })
+        }
+      }
+      break
     }
 
     if (i === fromLine) {
@@ -604,7 +652,6 @@ export const getMultiLineInfo = (
 
       if (!isHeader(text) && hasCountWidget(lineHandle.widgets)) {
         hasTomatoCount = true
-        console.log(`${i} line:`, lineHandle.widgets)
         const count = getTomatoCount(lineHandle.widgets)
 
         tomatoLineInfo.push({ line: i, text: lineHandle.text, count })
@@ -632,5 +679,5 @@ export const getMultiLineInfo = (
     }
   }
 
-  return { hasTomatoCount, tomatoLineInfo, hasHeader }
+  return { hasTomatoCount, tomatoLineInfo, hasHeader, headerWillChanged }
 }

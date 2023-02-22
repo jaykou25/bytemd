@@ -22,7 +22,7 @@ import useXml from 'codemirror-ssr/mode/xml/xml.js'
 import useYamlFrontmatter from 'codemirror-ssr/mode/yaml-frontmatter/yaml-frontmatter.js'
 import useYaml from 'codemirror-ssr/mode/yaml/yaml.js'
 import selectFiles from 'select-files'
-import { v1 } from 'uuid'
+import { v1, v4 } from 'uuid'
 
 export function createCodeMirror() {
   const codemirror = factory()
@@ -455,8 +455,16 @@ export const updateTomatoInfoByViewportChange = (
   doc.eachLine((line: any) => {
     const lineIndex = doc.getLineNumber(line)
     lineTotal = lineIndex
+    console.log('each line', { test: line.text, index: lineIndex })
 
     if (lineIndex !== undefined) {
+      // 每一行赋uuid, 如果有就不管
+      if (!line.wrapClass) {
+        const uuid = v4()
+        // doc.addLineClass(lineIndex, 'wrapper', lineIndex.toString())
+        doc.addLineClass(lineIndex, 'wrapper', uuid)
+      }
+
       // 如果行上有widgets, 更新行数
       if (hasPlayWidget(line.widgets)) {
         const widgetClassName = line.widgets.find((widget: any) =>
@@ -471,8 +479,6 @@ export const updateTomatoInfoByViewportChange = (
           }
         }
       }
-
-      console.log('newnew', line.styles, line)
 
       if (isHeaderByStyle(line.styles) && !hasPlayWidget(line.widgets)) {
         const uuid = v1()
@@ -582,10 +588,57 @@ export const hidePlaying = () => {
 }
 
 // 在beforeChange事件里, 利用change对象, 来得到将会变成的文字内容
-const getLineTextAfter = (textBefore: string, change: any) => {
-  let textAfter = textBefore
+// 仅考虑单行的情况
+export const getLineTextAfter = (textBefore: string, change: any) => {
+  const {
+    origin,
+    text,
+    from: { ch: fromCh },
+    to: { ch },
+  } = change
 
-  return textAfter
+  const x = textBefore.substring(0, fromCh)
+  const replacement = text[0]
+  const y = textBefore.substring(ch)
+
+  // 行首换行行为, 保留原来的文字
+  if (fromCh === 0 && ch === 0 && origin === '+input')  {
+    return textBefore
+  }
+
+  if (text.length > 1) {
+    return x + replacement
+  }
+
+  return x + replacement + y
+}
+
+// 仅考虑多行的情况
+export const getLineTextAfterMulti = (
+  textUp: string,
+  textDown: string,
+  change: any
+) => {
+  const {
+    origin,
+    text,
+    from: { ch: fromCh },
+    to: { ch },
+  } = change
+  const x = textUp.substring(0, fromCh)
+  const replacement = text[0]
+  const y = textDown.substring(ch)
+
+  if (text.length > 1) {
+    return x + replacement
+  }
+
+  return x + replacement + y
+}
+
+// 判断文字的样式是否会变化, 比如从header变到普通或者普通变成header
+export const isFormatWillChange = (textBefore: string, textAfter: string) => {
+  return isHeader(textBefore) !== isHeader(textAfter)
 }
 
 /*
@@ -606,7 +659,6 @@ export const getMultiLineInfo = (
 ): {
   hasTomatoCount: boolean
   tomatoLineInfo: any[]
-  hasHeader: boolean
   headerWillChanged: boolean
 } => {
   const {
@@ -616,68 +668,76 @@ export const getMultiLineInfo = (
 
   let hasTomatoCount = false
   const tomatoLineInfo: any[] = []
-  let hasHeader = false
   let headerWillChanged = false
 
-  for (let i = fromLine; i <= line; i++) {
-    const lineHandle = editor.getLineHandle(i)
+  // 单行情况
+  if (fromLine === line) {
+    const lineHandle = editor.getLineHandle(fromLine)
     // !这个lineText是change前的!!
     const lineText = lineHandle.text
-    if (isHeader(lineText)) {
-      hasHeader = true
+    const textAfter = getLineTextAfter(lineText, change)
+    if (
+     isFormatWillChange(lineText, textAfter) 
+    ) {
+      headerWillChanged = true
+
+      if (hasCountWidget(lineHandle.widgets)) {
+        hasTomatoCount = true
+        const count = getTomatoCount(lineHandle.widgets)
+
+        tomatoLineInfo.push({ line, text: lineText, count })
+      }
     }
+  } else {
+    /* 多行情况
+    处理多行情况要考虑行的留存, 大部分情况下都是保留的起始行. 
+    只有一种情况是保留的末行(即from和to的ch都为0)
+    保留末行的处理逻辑很简单, 只需要考虑中间行
 
-    // 单行删除情况
-    if (fromLine === line) {
-      const textAfter = getLineTextAfter(lineText, change)
-      if (
-        (isHeader(lineText) && !isHeader(textAfter)) ||
-        (!isHeader(lineText) && isHeader(textAfter))
-      ) {
-        headerWillChanged = true
+    保留首行的处理逻辑是除首行外其它行都会被销毁, 所以其它行需要考虑有无番茄数.
+    而首行需要先进行合并, 然后根据合并后的结果看它是否有番茄数
+    */
 
+    // 保留末行
+    if (fromCh === 0 && ch === 0) {
+      for (let i = fromLine + 1; i < line; i++) {
+        const lineHandle = editor.getLineHandle(i)
         if (hasCountWidget(lineHandle.widgets)) {
           hasTomatoCount = true
           const count = getTomatoCount(lineHandle.widgets)
 
-          tomatoLineInfo.push({ line: i, text: lineText, count })
-        }
-      }
-      break
-    }
-
-    if (i === fromLine) {
-      // 首行
-      const text = editor.getRange({ line: i, ch: 0 }, { line: i, ch: fromCh })
-
-      if (!isHeader(text) && hasCountWidget(lineHandle.widgets)) {
-        hasTomatoCount = true
-        const count = getTomatoCount(lineHandle.widgets)
-
-        tomatoLineInfo.push({ line: i, text: lineHandle.text, count })
-      }
-    } else if (i === line) {
-      // 末行
-      // 末行只有一种情况可以忽略, 即ch为0并且第一行全删
-      if (ch === 0 && fromCh === 0) {
-        // do noting
-      } else {
-        const text = lineHandle.text
-        if (isHeader(text) && hasCountWidget(lineHandle.widgets)) {
-          hasTomatoCount = true
-          const count = getTomatoCount(lineHandle.widgets)
           tomatoLineInfo.push({ line: i, text: lineHandle.text, count })
         }
       }
     } else {
-      // 中间行
-      if (hasCountWidget(lineHandle.widgets)) {
-        hasTomatoCount = true
-        const count = getTomatoCount(lineHandle.widgets)
-        tomatoLineInfo.push({ line: i, text: lineHandle.text, count })
+      // 保留首行
+      for (let i = fromLine; i <= line; i++) {
+        const lineHandle = editor.getLineHandle(i)
+        // !这个lineText是change前的!!
+        const lineText = lineHandle.text
+
+        if (i === fromLine) {
+          // 首行
+          const textUp = editor.getLine(fromLine)
+          const textDown = editor.getLine(line)
+          const textAfter = getLineTextAfterMulti(textUp, textDown, change)
+          if (!isHeader(textAfter) && hasCountWidget(lineHandle.widgets)) {
+            hasTomatoCount = true
+            const count = getTomatoCount(lineHandle.widgets)
+
+            tomatoLineInfo.push({ line: i, text: lineHandle.text, count })
+          }
+        } else {
+          // 其它行
+          if (hasCountWidget(lineHandle.widgets)) {
+            hasTomatoCount = true
+            const count = getTomatoCount(lineHandle.widgets)
+            tomatoLineInfo.push({ line: i, text: lineHandle.text, count })
+          }
+        }
       }
     }
   }
 
-  return { hasTomatoCount, tomatoLineInfo, hasHeader, headerWillChanged }
+  return { hasTomatoCount, tomatoLineInfo, headerWillChanged }
 }

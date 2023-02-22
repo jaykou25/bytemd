@@ -2,9 +2,5 @@
   "extends": "../../tsconfig-base.json",
   "include": ["src", "src/locales/*.json"],
   "exclude": ["src/addon/*.js"],
-  "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist",
-    "noImplicitAny": false
-  }
+  "compilerOptions": { "rootDir": "src", "outDir": "dist" }
 }

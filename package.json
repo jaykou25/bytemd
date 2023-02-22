@@ -7,13 +7,14 @@
   "scripts": {
     "build": "pnpm clean && node scripts/build.mjs && tsc --build",
     "clean": "rm -rf packages/*/tsconfig.tsbuildinfo && rm -rf packages/*/dist",
+    "cypress:open": "cypress open",
     "dev": "pnpm --filter playground dev",
     "format": "prettier --write '**/*.{ts,tsx,json,md,svelte}' && sort-package-json package.json 'packages/*/package.json'",
     "postinstall": "node scripts/postinstall.mjs && pnpm format && sort-json packages/*/locales/*.json",
     "pub": "pnpm build && lerna publish",
     "style": "prettier --check '**/*.{ts,tsx,json,md,svelte}'",
     "test": "vitest",
-    "cypress:open": "cypress open"
+    "testsite": "pnpm --filter testsite dev"
   },
   "prettier": {
     "pluginSearchDirs": [

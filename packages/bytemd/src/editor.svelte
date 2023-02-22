@@ -271,10 +271,8 @@
       // 1. 首行全删除 -> 末行到0位 :末行不会删dom
       //              -> 末行非0位 :末行会删!
       // 2. 首行没全删除 -> 末行都会删!
-      const { hasHeader, hasTomatoCount, tomatoLineInfo } = getMultiLineInfo(
-        ins,
-        change
-      )
+      const { hasTomatoCount, tomatoLineInfo, headerWillChanged } =
+        getMultiLineInfo(ins, change)
 
       if (hasTomatoCount) {
         const lines = tomatoLineInfo
@@ -294,7 +292,7 @@
             console.log('confirm')
             ins.state.isConfirm = true
             ins.replaceRange(
-              text[0],
+              text,
               { line: fromLine, ch: fromCh },
               { line, ch },
               origin
@@ -307,7 +305,7 @@
 
         change.cancel()
       } else {
-        if (hasHeader)
+        if (headerWillChanged)
           updateTomatoInfoByViewportChange(ins, tomatoLineInfo, dispatch)
       }
     })

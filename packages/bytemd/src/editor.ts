@@ -458,11 +458,14 @@ export const updateTomatoInfoByViewportChange = (
     console.log('each line', { test: line.text, index: lineIndex })
 
     if (lineIndex !== undefined) {
-      // 每一行赋uuid, 如果有就不管
-      if (!line.wrapClass) {
-        const uuid = v4()
-        // doc.addLineClass(lineIndex, 'wrapper', lineIndex.toString())
-        doc.addLineClass(lineIndex, 'wrapper', uuid)
+      // 为每一行赋上一个代表行号的class
+      if (getLineIndexByClass(line.wrapClass) !== lineIndex) {
+        doc.removeLineClass(lineIndex, 'wrapper')
+        doc.addLineClass(
+          lineIndex,
+          'wrapper',
+          `lineWrapper lineIndex-${lineIndex}`
+        )
       }
 
       // 如果行上有widgets, 更新行数
@@ -565,18 +568,27 @@ export const getUuidByClass = (nameList: string) => {
   }
 }
 
-export const showPlaying = (uuid: string) => {
+export const getLineIndexByClass = (classList: string = '') => {
+  const list = classList.split(' ')
+  const indexClass = list.find((name) => name.includes('lineIndex'))
+  if (indexClass) {
+    return +indexClass.split('-')[1]
+  }
+}
+
+export const showPlaying = (doc: any, uuid: string) => {
   hidePlaying()
 
   // 隐藏playicon
   const codeBody = document.querySelector('.CodeMirror-code')
   codeBody?.classList.add('playing')
 
-  const div = document.createElement('div')
-  div.className = 'tomatoPlaying'
+  const span = document.createElement('span')
   const target = document.querySelector(`.playbtn_${uuid}`)
   if (target) {
-    target.parentNode?.append(div)
+    const wrapper = target.closest('.lineWrapper')
+    const lineIndex = getLineIndexByClass(wrapper?.className)
+    doc.addLineWidget(lineIndex, span, { className: 'tomatoPlaying' })
   }
 }
 
@@ -602,7 +614,7 @@ export const getLineTextAfter = (textBefore: string, change: any) => {
   const y = textBefore.substring(ch)
 
   // 行首换行行为, 保留原来的文字
-  if (fromCh === 0 && ch === 0 && origin === '+input')  {
+  if (fromCh === 0 && ch === 0 && origin === '+input') {
     return textBefore
   }
 
@@ -676,9 +688,7 @@ export const getMultiLineInfo = (
     // !这个lineText是change前的!!
     const lineText = lineHandle.text
     const textAfter = getLineTextAfter(lineText, change)
-    if (
-     isFormatWillChange(lineText, textAfter) 
-    ) {
+    if (isFormatWillChange(lineText, textAfter)) {
       headerWillChanged = true
 
       if (hasCountWidget(lineHandle.widgets)) {

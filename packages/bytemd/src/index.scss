@@ -336,10 +336,35 @@ $max-width: 800px;
   top: 0px;
   bottom: 1px;
   margin: auto 0;
-  background-color: red;
+  background-color: #19ae19;
   width: 6px;
   height: 6px;
   border-radius: 3px;
+}
+
+.tomatoPlaying::after {
+  position: absolute;
+  inset: 0;
+  border-width: 1px;
+  border-color: inherit;
+  border-style: solid;
+  border-radius: 50%;
+  content: '';
+  animation-name: dotProcessing;
+  animation-duration: 1.2s;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+
+@keyframes dotProcessing {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
 }
 
 .playBtn > svg {

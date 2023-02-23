@@ -15,7 +15,6 @@
     syncTomatoWidget,
     updateTomatoInfoByViewportChange,
     syncTomatoCount,
-    hasCountWidget,
     getMultiLineInfo,
   } from './editor'
   import Help from './help.svelte'
@@ -102,7 +101,7 @@
   })()
 
   $: if (playingUuid) {
-    showPlaying(playingUuid)
+    showPlaying(editor.getDoc(), playingUuid)
   } else {
     hidePlaying()
   }
@@ -146,10 +145,19 @@
     editor.addKeyMap(keyMap)
   }
   function off() {
-    // console.log('off', plugins);
+    // console.log('off', plugins)
     cbs.forEach((cb) => cb && cb())
 
     editor?.removeKeyMap(keyMap) // onDestroy runs at SSR, optional chaining here
+  }
+
+  const handlePlay = (e: any) => {
+    const btn = e.target?.closest('.linewidget-playbtn')
+    if (btn) {
+      const uuid = getUuidByClass(btn.className)
+      const text = btn.parentNode.querySelector('.CodeMirror-line').innerText
+      dispatch('play', { value: { uuid, text } })
+    }
   }
 
   let debouncedValue = value
@@ -219,15 +227,7 @@
     // 监听click事件
     document
       .querySelector('.CodeMirror-code')
-      ?.addEventListener('click', (e) => {
-        const btn = e.target?.closest('.linewidget-playbtn')
-        if (btn) {
-          const uuid = getUuidByClass(btn.className)
-          const text =
-            btn.parentNode.querySelector('.CodeMirror-line').innerText
-          dispatch('play', { value: { uuid, text } })
-        }
-      })
+      ?.addEventListener('click', handlePlay)
 
     // https://github.com/codemirror/CodeMirror/issues/2428#issuecomment-39315423
     // https://github.com/codemirror/CodeMirror/issues/988#issuecomment-392232020
@@ -493,7 +493,12 @@
 
     // No need to call `on` because cm instance would change once after init
   })
-  onDestroy(off)
+  onDestroy(() => {
+    off()
+    document
+      .querySelector('.CodeMirror-code')
+      ?.removeEventListener('click', handlePlay)
+  })
 </script>
 
 <div

@@ -1,4 +1,5 @@
 import {
+  getLineIndexByClass,
   getLineTextAfter,
   getLineTextAfterMulti,
   isFormatWillChange,
@@ -221,5 +222,13 @@ describe('isFormatWillChange', () => {
     expect(isFormatWillChange(p, header)).toBeTruthy()
     expect(isFormatWillChange(p, p)).toBeFalsy()
     expect(isFormatWillChange(header, header)).toBeFalsy()
+  })
+})
+
+describe('utils系列', () => {
+  test('getLineIndexByClass', () => {
+    expect(getLineIndexByClass('lineIndex-3')).toBe(3)
+    expect(getLineIndexByClass('')).toBe(undefined)
+    expect(getLineIndexByClass()).toBe(undefined)
   })
 })

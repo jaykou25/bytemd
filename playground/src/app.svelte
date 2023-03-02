@@ -69,8 +69,8 @@
   let tomatoCountInfo = localStorage.getItem('tomatoCountInfo')
     ? JSON.parse(localStorage.getItem('tomatoCountInfo'))
     : {
-        uuid1: 3,
-        uuid2: 5,
+        uuid1: 1,
+        uuid2: 2,
       }
 
   let playingUuid
@@ -151,18 +151,18 @@
       const { uuid } = e.detail.value
       playingUuid = uuid
 
-      // setTimeout(() => {
-      //   playingUuid = ''
-      //   // 更新tomatoCountInfo
-      //   const copy = { ...tomatoCountInfo }
-      //   if (copy[uuid]) {
-      //     copy[uuid] += 1
-      //   } else {
-      //     copy[uuid] = 1
-      //   }
-      //   tomatoCountInfo = copy
-      //   localStorage.setItem('tomatoCountInfo', JSON.stringify(copy))
-      // }, 2000)
+      setTimeout(() => {
+        playingUuid = ''
+        // 更新tomatoCountInfo
+        const copy = { ...tomatoCountInfo }
+        if (copy[uuid]) {
+          copy[uuid] += 1
+        } else {
+          copy[uuid] = 1
+        }
+        tomatoCountInfo = copy
+        localStorage.setItem('tomatoCountInfo', JSON.stringify(copy))
+      }, 13000)
     }}
     on:tomatoLineInfoChange={(e) => {
       console.log('LineInfoChange', e.detail.value)

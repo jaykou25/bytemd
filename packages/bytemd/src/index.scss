@@ -383,3 +383,48 @@ $max-width: 800px;
 .CodeMirror-code.playing .linewidget-playbtn {
   visibility: hidden;
 }
+
+// viewer区域的tomato相关样式
+.line-wrapper {
+  position: relative;
+}
+
+.line-playbtn {
+  position: absolute;
+  right: 18px;
+  z-index: 99;
+  top: 0;
+  bottom: 0;
+  padding-bottom: inherit;
+  cursor: pointer;
+  visibility: visible;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  line-height: 0;
+}
+
+.line-wrapper:hover .line-playbtn {
+  visibility: visible;
+}
+
+.line-tomatocount {
+  position: absolute;
+  right: 8px;
+  z-index: 99;
+  top: 0;
+  bottom: 0;
+  font-size: 13px;
+  padding-bottom: inherit;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.markdown-body.playing .line-playbtn {
+  visibility: hidden;
+}
+
+.viewerPlaying {
+  left: -15px;
+}

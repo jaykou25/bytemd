@@ -1,4 +1,5 @@
 import './addon/confirm.css'
+// @ts-ignore
 import useConfirm from './addon/confirm.js'
 import { icons } from './icons'
 import type {
@@ -21,6 +22,7 @@ import useMarkdown from 'codemirror-ssr/mode/markdown/markdown.js'
 import useXml from 'codemirror-ssr/mode/xml/xml.js'
 import useYamlFrontmatter from 'codemirror-ssr/mode/yaml-frontmatter/yaml-frontmatter.js'
 import useYaml from 'codemirror-ssr/mode/yaml/yaml.js'
+import { isEqual } from 'lodash-es'
 import selectFiles from 'select-files'
 import { v1, v4 } from 'uuid'
 
@@ -382,7 +384,7 @@ export const addPlayIcon = (doc: any, index: number, uuid?: string) => {
   })
 }
 
-export const hasPlayWidget = (widgets: any[] = []) => {
+export const hasPlayWidget = (widgets = []) => {
   return widgets.some((widget) => widget.className.includes('tomatowidget'))
 }
 
@@ -419,107 +421,101 @@ export const syncTomatoWidget = (
   tomatoCountInfo: any
 ) => {
   const lineUuidMap = reverseTomatoLineInfo(tomatoLineInfo)
-  // 隐藏
-  // dom的操作可能是异步的
-  document.querySelectorAll('.tomatowidget').forEach((node) => {
-    const uuid = getUuidByClass(node.className)
-    if (uuid) {
+  // 移除widget, 要用codemirror的方法来移除, 仅仅移掉dom可能会有问题, 因为editor上的widgets信息还会在
+
+  /*
+    根据tomatoLineInfo的信息来同步widgets
+    1. 有widget, tomatoLineInfo上没有这个信息, 则删除.
+    2. 无widget, tomatoLineInfo上有信息, 则添加
+  */
+
+  doc.eachLine((lineHandle: any) => {
+    const lineIndex = doc.getLineNumber(lineHandle)
+
+    if (hasPlayWidget(lineHandle.widgets)) {
+      const widgetClassName = lineHandle.widgets.find((widget: any) =>
+        widget.className.includes('tomatowidget')
+      ).className
+      const uuid = getUuidByClass(widgetClassName) || ''
       if (tomatoLineInfo[uuid] === undefined) {
-        node.remove()
+        // remove widgets
+        const widgets = lineHandle.widgets.filter((widget) =>
+          widget.className.includes('tomatowidget')
+        )
+        widgets.forEach((widget) => widget.clear())
       }
-    }
-  })
+    } else {
+      if (lineUuidMap[lineIndex]) {
+        const uuid = lineUuidMap[lineIndex]
+        addPlayIcon(doc, +lineIndex, uuid)
 
-  // 显示
-  console.log('syncTomatoWidget', { lineUuidMap })
-  Object.keys(lineUuidMap).forEach((lineIndex) => {
-    const line = doc.getLineHandle(+lineIndex)
-
-    if (line && !hasPlayWidget(line.widgets)) {
-      const uuid = lineUuidMap[lineIndex]
-      addPlayIcon(doc, +lineIndex, uuid)
-
-      showTomatoCount(doc, +lineIndex, tomatoCountInfo[uuid], uuid)
+        addTomatoCount(doc, +lineIndex, tomatoCountInfo[uuid], uuid)
+      }
     }
   })
 }
 
-export const updateTomatoInfoByViewportChange = (
-  doc: any,
-  tomatoLineInfo: any,
-  dispatch: any
-) => {
-  let tomatoLineInfoChange = false
-
-  let lineTotal = 0
+export const updateLineIndex = (doc: any, value: any) => {
   doc.eachLine((line: any) => {
     const lineIndex = doc.getLineNumber(line)
-    lineTotal = lineIndex
-    console.log('each line', { test: line.text, index: lineIndex })
+    if (lineIndex === undefined) return
 
-    if (lineIndex !== undefined) {
-      // 为每一行赋上一个代表行号的class
-      if (getLineIndexByClass(line.wrapClass) !== lineIndex) {
-        doc.removeLineClass(lineIndex, 'wrapper')
-        doc.addLineClass(
-          lineIndex,
-          'wrapper',
-          `lineWrapper lineIndex-${lineIndex}`
-        )
-      }
+    // 为每一行赋上一个代表行号的class
+    if (getLineIndexByClass(line.wrapClass) !== lineIndex) {
+      doc.removeLineClass(lineIndex, 'wrapper')
+      doc.addLineClass(
+        lineIndex,
+        'wrapper',
+        `lineWrapper lineIndex-${lineIndex}`
+      )
+    }
+  })
+}
 
-      // 如果行上有widgets, 更新行数
+/* 
+  当value发生变化时, 更新tomatoLineInfo. 第四个参数value只是用来观测的
+*/
+export const updateTomatoLineInfo = (
+  doc: any,
+  tomatoLineInfo: any,
+  dispatch: any,
+  value: any
+) => {
+  const newTomatoLineInfo: { [key: string]: string } = {}
+  const lineUuidMap = reverseTomatoLineInfo(tomatoLineInfo)
+
+  doc.eachLine((line: any) => {
+    const lineIndex = doc.getLineNumber(line)
+    if (lineIndex === undefined) return
+
+    /*
+      遍历每行来生成一个新的tomatoLineInfo, 然后比较这个info跟先前的值是不是一样, 如果不一样, 那触发dispatch
+      1. 如果行上有widgets, 
+      2. 如果行是header, 生成uuid
+    */
+
+    if (isHeaderByStyle(line.styles)) {
       if (hasPlayWidget(line.widgets)) {
         const widgetClassName = line.widgets.find((widget: any) =>
           widget.className.includes('tomatowidget')
         ).className
         const uuid = getUuidByClass(widgetClassName)
         if (uuid) {
-          const oldLine = tomatoLineInfo[uuid]
-          if (oldLine !== undefined && oldLine !== lineIndex) {
-            tomatoLineInfo[uuid] = lineIndex
-            tomatoLineInfoChange = true
-          }
+          newTomatoLineInfo[uuid] = lineIndex
         }
-      }
-
-      if (isHeaderByStyle(line.styles) && !hasPlayWidget(line.widgets)) {
-        const uuid = v1()
-        tomatoLineInfo[uuid] = lineIndex
-        tomatoLineInfoChange = true
-      }
-
-      // 删除的情况不需要考虑style, 只要不符合header格式都要删除. 因为在删除模式下header的样式会保留
-      if (!isHeader(line.text) && hasPlayWidget(line.widgets)) {
-        const widget = line.widgets.find((widget: any) =>
-          widget.className.includes('tomatowidget')
-        )
-        const uuid = getUuidByClass(widget.className)
-        if (uuid) {
-          delete tomatoLineInfo[uuid]
-          tomatoLineInfoChange = true
-        }
+      } else {
+        const uuid = lineUuidMap[lineIndex] || v4()
+        newTomatoLineInfo[uuid] = lineIndex
       }
     }
   })
 
-  // 删除掉超出行总数的tomatoLineInfo
-  Object.keys(tomatoLineInfo).forEach((uuid) => {
-    if (tomatoLineInfo[uuid] > lineTotal) {
-      delete tomatoLineInfo[uuid]
-      tomatoLineInfoChange = true
-    }
-  })
-
-  if (tomatoLineInfoChange) {
-    setTimeout(() => {
-      dispatch('tomatoLineInfoChange', { value: tomatoLineInfo })
-      console.log('svelte dispatch lineinfo:', tomatoLineInfo)
-    })
+  if (!isEqual(tomatoLineInfo, newTomatoLineInfo)) {
+    dispatch('tomatoLineInfoChange', { value: newTomatoLineInfo })
   }
 }
 
-export const showTomatoCount = (
+export const addTomatoCount = (
   doc: any,
   index: number,
   count: number,
@@ -542,7 +538,9 @@ export const syncTomatoCount = (tomatoCountInfo: any) => {
     )
     if (span) {
       const text = span.innerText
-      const count = tomatoCountInfo[uuid].toString()
+      const count = tomatoCountInfo[uuid]
+        ? tomatoCountInfo[uuid].toString()
+        : ''
       if (text !== count) {
         span.innerText = count
       }
@@ -590,6 +588,23 @@ export const showPlaying = (doc: any, uuid: string) => {
     const lineIndex = getLineIndexByClass(wrapper?.className)
     doc.addLineWidget(lineIndex, span, { className: 'tomatoPlaying' })
   }
+}
+
+export const showViewerPlaying = (body: any, uuid: string) => {
+  hideViewerPlaying(body)
+
+  body.classList.add('playing')
+  const target = body.querySelector(`.playbtn_${uuid}`)
+  if (target) {
+    const div = document.createElement('div')
+    div.className = 'tomatoPlaying viewerPlaying'
+    target.append(div)
+  }
+}
+export const hideViewerPlaying = (body: any) => {
+  body?.classList.remove('playing')
+
+  body?.querySelectorAll('.viewerPlaying').forEach((ele: any) => ele.remove())
 }
 
 export const hidePlaying = () => {
@@ -671,7 +686,6 @@ export const getMultiLineInfo = (
 ): {
   hasTomatoCount: boolean
   tomatoLineInfo: any[]
-  headerWillChanged: boolean
 } => {
   const {
     from: { line: fromLine, ch: fromCh },
@@ -680,7 +694,6 @@ export const getMultiLineInfo = (
 
   let hasTomatoCount = false
   const tomatoLineInfo: any[] = []
-  let headerWillChanged = false
 
   // 单行情况
   if (fromLine === line) {
@@ -689,8 +702,6 @@ export const getMultiLineInfo = (
     const lineText = lineHandle.text
     const textAfter = getLineTextAfter(lineText, change)
     if (isFormatWillChange(lineText, textAfter)) {
-      headerWillChanged = true
-
       if (hasCountWidget(lineHandle.widgets)) {
         hasTomatoCount = true
         const count = getTomatoCount(lineHandle.widgets)
@@ -702,7 +713,7 @@ export const getMultiLineInfo = (
     /* 多行情况
     处理多行情况要考虑行的留存, 大部分情况下都是保留的起始行. 
     只有一种情况是保留的末行(即from和to的ch都为0)
-    保留末行的处理逻辑很简单, 只需要考虑中间行
+    保留末行的处理逻辑很简单, 只需要考虑末行外的其它行
 
     保留首行的处理逻辑是除首行外其它行都会被销毁, 所以其它行需要考虑有无番茄数.
     而首行需要先进行合并, 然后根据合并后的结果看它是否有番茄数
@@ -710,7 +721,7 @@ export const getMultiLineInfo = (
 
     // 保留末行
     if (fromCh === 0 && ch === 0) {
-      for (let i = fromLine + 1; i < line; i++) {
+      for (let i = fromLine; i < line; i++) {
         const lineHandle = editor.getLineHandle(i)
         if (hasCountWidget(lineHandle.widgets)) {
           hasTomatoCount = true
@@ -749,5 +760,5 @@ export const getMultiLineInfo = (
     }
   }
 
-  return { hasTomatoCount, tomatoLineInfo, headerWillChanged }
+  return { hasTomatoCount, tomatoLineInfo }
 }

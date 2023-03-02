@@ -13,9 +13,12 @@
     showPlaying,
     hidePlaying,
     syncTomatoWidget,
-    updateTomatoInfoByViewportChange,
     syncTomatoCount,
     getMultiLineInfo,
+    showViewerPlaying,
+    hideViewerPlaying,
+    updateTomatoLineInfo,
+    updateLineIndex,
   } from './editor'
   import Help from './help.svelte'
   import { icons } from './icons'
@@ -53,7 +56,7 @@
   $: mergedLocale = { ...en, ...locale }
   const dispatch = createEventDispatcher<{
     change: { value: string }
-    play: { value: string }
+    play: { value: { text?: string; uuid?: string } }
     tomatoLineInfoChange: { value: any }
   }>()
 
@@ -104,6 +107,12 @@
     showPlaying(editor.getDoc(), playingUuid)
   } else {
     hidePlaying()
+  }
+
+  // 这里的顺序是重要的
+  $: if (editor) {
+    updateLineIndex(editor.getDoc(), value)
+    updateTomatoLineInfo(editor.getDoc(), tomatoLineInfo, dispatch, value)
   }
 
   $: if (editor) {
@@ -174,6 +183,7 @@
   $: setDebouncedValue(value)
 
   $: if (editor && value !== editor.getValue()) {
+    console.log('never')
     editor.setValue(value)
   }
 
@@ -211,18 +221,7 @@
       lineNumbers: true,
     })
 
-    const doc = editor.getDoc()
-
-    syncTomatoWidget(doc, tomatoLineInfo, tomatoCountInfo)
-    // 对没有uuid的header初始化
     console.log('svelte onmount:', { value, tomatoLineInfo })
-    updateTomatoInfoByViewportChange(doc, tomatoLineInfo, dispatch)
-
-    editor.on('viewportChange', (ins) => {
-      // 增加行, 减行, 滚动都会引起viewportChange
-      // 需要更新lineIndex
-      updateTomatoInfoByViewportChange(ins.getDoc(), tomatoLineInfo, dispatch)
-    })
 
     // 监听click事件
     document
@@ -271,8 +270,7 @@
       // 1. 首行全删除 -> 末行到0位 :末行不会删dom
       //              -> 末行非0位 :末行会删!
       // 2. 首行没全删除 -> 末行都会删!
-      const { hasTomatoCount, tomatoLineInfo, headerWillChanged } =
-        getMultiLineInfo(ins, change)
+      const { hasTomatoCount, tomatoLineInfo } = getMultiLineInfo(ins, change)
 
       if (hasTomatoCount) {
         const lines = tomatoLineInfo
@@ -297,47 +295,14 @@
               { line, ch },
               origin
             )
-            setTimeout(() => {
-              updateTomatoInfoByViewportChange(ins, tomatoLineInfo, dispatch)
-            }, 50)
           },
         })
 
         change.cancel()
-      } else {
-        if (headerWillChanged)
-          updateTomatoInfoByViewportChange(ins, tomatoLineInfo, dispatch)
       }
     })
 
     editor.on('change', (ins, change) => {
-      const {
-        from: { line: fromLine },
-        to: { line },
-      } = change
-
-      // 在change事件里lsyncTomatoWidget的styles还没有被渲染出来, 看起来是有延时的.
-      const lineText = ins.getLine(line)
-
-      if (change.origin === '+input') {
-        // 这里change后, doc.eachLine里输入行的样式获取不到
-        if (isHeader(lineText)) {
-          setTimeout(() => {
-            updateTomatoInfoByViewportChange(ins, tomatoLineInfo, dispatch)
-          }, 100)
-        }
-      }
-
-      // if (change.origin === '+delete') {
-      //   // 只考虑单行删除
-      //   if (fromLine === line) {
-      //     const text = ins.getLine(line)
-      //     if (!isHeader(text)) {
-      //       updateTomatoInfoByViewportChange(ins, tomatoLineInfo, dispatch)
-      //     }
-      //   }
-      // }
-
       dispatch('change', { value: editor.getValue() })
       console.log('selvte dispatch change', { value: editor.getValue() })
     })
@@ -562,12 +527,29 @@
       {#if !overridePreview && (split || activeTab === 'preview')}
         <Viewer
           value={debouncedValue}
-          {plugins}
+          plugins={[
+            ...plugins,
+            {
+              viewerEffect({ markdownBody }) {
+                if (playingUuid) {
+                  showViewerPlaying(markdownBody, playingUuid)
+                } else {
+                  hideViewerPlaying(markdownBody)
+                }
+              },
+            },
+          ]}
           {sanitize}
           {remarkRehype}
+          {tomatoLineInfo}
+          {tomatoCountInfo}
           on:hast={(e) => {
             hast = e.detail.hast
             vfile = e.detail.file
+          }}
+          on:viewerPlay={(e) => {
+            const { uuid, text } = e.detail
+            dispatch('play', { value: { uuid, text } })
           }}
         />
       {/if}

@@ -239,4 +239,7 @@ export interface ViewerProps {
    * https://github.com/remarkjs/remark-rehype
    */
   remarkRehype?: Options
+
+  tomatoLineInfo?: any
+  tomatoCountInfo?: any
 }

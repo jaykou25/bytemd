@@ -52,8 +52,8 @@
   }
 
   let tomatoCountInfo = {
-    uuid0: 3,
-    uuid2: 3,
+    uuid0: 1,
+    uuid2: 2,
     uuid4: 3,
   }
 
@@ -92,7 +92,9 @@
         })
       )
     }}
-    on:change={(e) => {}}
+    on:change={(e) => {
+      value = e.detail.value
+    }}
     on:play={(e) => {
       console.log('play', e.detail.value)
       const { uuid } = e.detail.value

@@ -8,17 +8,15 @@
     findStartIndex,
     getBuiltinActions,
     handleImageUpload,
-    isHeader,
     getUuidByClass,
     showPlaying,
     hidePlaying,
     syncTomatoWidget,
-    syncTomatoCount,
     getMultiLineInfo,
     showViewerPlaying,
     hideViewerPlaying,
-    updateTomatoLineInfo,
     updateLineIndex,
+    updateTomatoLineInfo2,
   } from './editor'
   import Help from './help.svelte'
   import { icons } from './icons'
@@ -106,21 +104,47 @@
   $: if (playingUuid) {
     showPlaying(editor.getDoc(), playingUuid)
   } else {
-    hidePlaying()
+    if (editor) hidePlaying(editor.getDoc())
   }
 
   // 这里的顺序是重要的
   $: if (editor) {
     updateLineIndex(editor.getDoc(), value)
-    updateTomatoLineInfo(editor.getDoc(), tomatoLineInfo, dispatch, value)
+    /**
+     2023.3.3 
+     在react端使用这个应用, 然后监听它内部的事件:
+     步骤1
+     const editor = new bytemd.Editor({
+      target: 'dom',
+      props: {value}
+     })
+
+     步骤2
+     editor.$on('tomatoLineInfoChange', () => {
+     })
+
+     很奇怪的是在步骤2 建立事件监听之前, dispatch就已经触发了
+     它的执行顺序是:
+     1. onMount
+     2. endMount
+     3. 执行响应式语句, $: somthing
+     4. 步骤2
+
+     所以要在第3步的语句里加入tick(), tick里的语句会有第4步之后再执行. 
+    */
+    tick().then(() => {
+      updateTomatoLineInfo2(
+        value,
+        plugins,
+        editor.getDoc(),
+        tomatoLineInfo,
+        dispatch
+      )
+    })
   }
 
   $: if (editor) {
     syncTomatoWidget(editor.getDoc(), tomatoLineInfo, tomatoCountInfo)
-  }
-
-  $: if (editor) {
-    syncTomatoCount(tomatoCountInfo)
   }
 
   $: context = (() => {
@@ -456,6 +480,8 @@
       // console.log(containerWidth);
     }).observe(root, { box: 'border-box' })
 
+    console.log('end of onMount')
+
     // No need to call `on` because cm instance would change once after init
   })
   onDestroy(() => {
@@ -464,6 +490,8 @@
       .querySelector('.CodeMirror-code')
       ?.removeEventListener('click', handlePlay)
   })
+
+  console.log('end of script')
 </script>
 
 <div

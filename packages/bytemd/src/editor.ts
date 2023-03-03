@@ -9,6 +9,7 @@ import type {
   BytemdLocale,
   BytemdEditorContext,
 } from './types'
+import { getMdParser } from './utils'
 import type { Editor, Position } from 'codemirror'
 import type CodeMirror from 'codemirror'
 import factory from 'codemirror-ssr'
@@ -24,6 +25,7 @@ import useYamlFrontmatter from 'codemirror-ssr/mode/yaml-frontmatter/yaml-frontm
 import useYaml from 'codemirror-ssr/mode/yaml/yaml.js'
 import { isEqual } from 'lodash-es'
 import selectFiles from 'select-files'
+import { visit } from 'unist-util-visit'
 import { v1, v4 } from 'uuid'
 
 export function createCodeMirror() {
@@ -369,10 +371,6 @@ export const isHeader = (text: string) => {
   return /^#+ /.test(text)
 }
 
-export const isHeaderByStyle = (styles: string[] = []) => {
-  return (styles || []).some((style) => style?.toString().includes('header'))
-}
-
 export const addPlayIcon = (doc: any, index: number, uuid?: string) => {
   const icon =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path fill="none" d="M0 0h24v24H0z"/><path d="M7.752 5.439l10.508 6.13a.5.5 0 0 1 0 .863l-10.508 6.13A.5.5 0 0 1 7 18.128V5.871a.5.5 0 0 1 .752-.432z"/></svg>'
@@ -385,11 +383,13 @@ export const addPlayIcon = (doc: any, index: number, uuid?: string) => {
 }
 
 export const hasPlayWidget = (widgets = []) => {
-  return widgets.some((widget) => widget.className.includes('tomatowidget'))
+  return (widgets || []).some((widget: any) =>
+    widget.className.includes('tomatowidget')
+  )
 }
 
 export const hasCountWidget = (widgets: any[] = []) => {
-  const widget = widgets.find((widget) =>
+  const widget = (widgets || []).find((widget) =>
     widget.className.includes('tomatocount')
   )
   if (widget) {
@@ -425,7 +425,7 @@ export const syncTomatoWidget = (
 
   /*
     根据tomatoLineInfo的信息来同步widgets
-    1. 有widget, tomatoLineInfo上没有这个信息, 则删除.
+    1. 有widget, tomatoLineInfo上没有这个信息, 则删除; 有信息, 刚更新count
     2. 无widget, tomatoLineInfo上有信息, 则添加
   */
 
@@ -439,10 +439,18 @@ export const syncTomatoWidget = (
       const uuid = getUuidByClass(widgetClassName) || ''
       if (tomatoLineInfo[uuid] === undefined) {
         // remove widgets
-        const widgets = lineHandle.widgets.filter((widget) =>
+        const widgets = lineHandle.widgets.filter((widget: any) =>
           widget.className.includes('tomatowidget')
         )
-        widgets.forEach((widget) => widget.clear())
+        widgets.forEach((widget: any) => widget.clear())
+      } else {
+        // update count
+        lineHandle.widgets
+          .find((widget: any) =>
+            widget.className.includes('linewidget-tomatocount')
+          )
+          ?.clear()
+        addTomatoCount(doc, +lineIndex, tomatoCountInfo[uuid], uuid)
       }
     } else {
       if (lineUuidMap[lineIndex]) {
@@ -473,45 +481,54 @@ export const updateLineIndex = (doc: any, value: any) => {
 }
 
 /* 
-  当value发生变化时, 更新tomatoLineInfo. 第四个参数value只是用来观测的
+  当value发生变化时, 更新tomatoLineInfo. 
+  这是一个改进版本, 把md文字解析成树, 可以很准确的获取想要的内容
 */
-export const updateTomatoLineInfo = (
+export const updateTomatoLineInfo2 = (
+  value: string,
+  plugins: any,
   doc: any,
   tomatoLineInfo: any,
-  dispatch: any,
-  value: any
+  dispatch: any
 ) => {
-  const newTomatoLineInfo: { [key: string]: string } = {}
+  const newTomatoLineInfo: { [key: string]: number } = {}
   const lineUuidMap = reverseTomatoLineInfo(tomatoLineInfo)
 
-  doc.eachLine((line: any) => {
-    const lineIndex = doc.getLineNumber(line)
-    if (lineIndex === undefined) return
+  const mdParser = getMdParser(plugins)
+  try {
+    const tree = mdParser.parse(value)
+    visit(tree, ['heading', 'listItem'], (node) => {
+      if (node.position) {
+        const lineIndex = node.position.start.line - 1
+        const lineHandle = doc.getLineHandle(lineIndex)
 
-    /*
-      遍历每行来生成一个新的tomatoLineInfo, 然后比较这个info跟先前的值是不是一样, 如果不一样, 那触发dispatch
-      1. 如果行上有widgets, 
-      2. 如果行是header, 生成uuid
-    */
+        /*
+          生成一个新的tomatoLineInfo, 然后比较这个info跟先前的值是不是一样, 如果不一样, 那触发dispatch
+          1. 如果行上有widgets, 更新这个uuid的index 
+          2. 否则用tomatoLineInfo里的uuid, 或生成一个新的uuid
+        */
 
-    if (isHeaderByStyle(line.styles)) {
-      if (hasPlayWidget(line.widgets)) {
-        const widgetClassName = line.widgets.find((widget: any) =>
-          widget.className.includes('tomatowidget')
-        ).className
-        const uuid = getUuidByClass(widgetClassName)
-        if (uuid) {
+        if (hasPlayWidget(lineHandle.widgets)) {
+          const widgetClassName = lineHandle.widgets.find((widget: any) =>
+            widget.className.includes('tomatowidget')
+          ).className
+          const uuid = getUuidByClass(widgetClassName)
+          if (uuid) {
+            newTomatoLineInfo[uuid] = lineIndex
+          }
+        } else {
+          const uuid = lineUuidMap[lineIndex] || v4()
           newTomatoLineInfo[uuid] = lineIndex
         }
-      } else {
-        const uuid = lineUuidMap[lineIndex] || v4()
-        newTomatoLineInfo[uuid] = lineIndex
       }
-    }
-  })
+    })
 
-  if (!isEqual(tomatoLineInfo, newTomatoLineInfo)) {
-    dispatch('tomatoLineInfoChange', { value: newTomatoLineInfo })
+    if (!isEqual(tomatoLineInfo, newTomatoLineInfo)) {
+      console.log('dispatch tomatoLineInfoChange')
+      dispatch('tomatoLineInfoChange', { value: newTomatoLineInfo })
+    }
+  } catch (e) {
+    console.log('parse error', e)
   }
 }
 
@@ -528,23 +545,6 @@ export const addTomatoCount = (
   }
   doc.addLineWidget(index, span, {
     className: `linewidget-tomatocount tomatowidget tomatocount_${uuid}`,
-  })
-}
-
-export const syncTomatoCount = (tomatoCountInfo: any) => {
-  Object.keys(tomatoCountInfo).forEach((uuid) => {
-    const span: HTMLElement | null = document.querySelector(
-      `.tomatocount_${uuid} > span`
-    )
-    if (span) {
-      const text = span.innerText
-      const count = tomatoCountInfo[uuid]
-        ? tomatoCountInfo[uuid].toString()
-        : ''
-      if (text !== count) {
-        span.innerText = count
-      }
-    }
   })
 }
 
@@ -575,7 +575,7 @@ export const getLineIndexByClass = (classList: string = '') => {
 }
 
 export const showPlaying = (doc: any, uuid: string) => {
-  hidePlaying()
+  hidePlaying(doc)
 
   // 隐藏playicon
   const codeBody = document.querySelector('.CodeMirror-code')
@@ -607,8 +607,15 @@ export const hideViewerPlaying = (body: any) => {
   body?.querySelectorAll('.viewerPlaying').forEach((ele: any) => ele.remove())
 }
 
-export const hidePlaying = () => {
-  document.querySelectorAll('.tomatoPlaying').forEach((ele) => ele.remove())
+/**
+ * 不能直接操作dom
+ */
+export const hidePlaying = (doc: any) => {
+  doc.eachLine((lineHandle: any) => {
+    ;(lineHandle.widgets || [])
+      .find((widget: any) => widget.className.includes('tomatoPlaying'))
+      ?.clear()
+  })
 
   const codeBody = document.querySelector('.CodeMirror-code')
   codeBody?.classList.remove('playing')

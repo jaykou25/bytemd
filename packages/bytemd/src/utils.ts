@@ -43,3 +43,12 @@ export function getProcessor({
 
   return processor.use(rehypeStringify)
 }
+
+export const getMdParser = (plugins: ViewerProps['plugins']) => {
+  let processor: Processor = unified().use(remarkParse)
+  plugins?.forEach(({ remark }) => {
+    if (remark) processor = remark(processor)
+  })
+
+  return processor
+}

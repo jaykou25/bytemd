@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Editor } from '../../packages/bytemd/src/index.ts'
-  import markdownText from './text.md?raw'
+  import markdownText from './text2.md?raw'
   import breaks from '@bytemd/plugin-breaks'
   import frontmatter from '@bytemd/plugin-frontmatter'
   import gemoji from '@bytemd/plugin-gemoji'
@@ -12,6 +12,10 @@
   import 'highlight.js/styles/vs.css'
   // placed after highlight styles to override `code` padding
   import 'katex/dist/katex.css'
+  import { onMount } from 'svelte'
+
+  const lienInfoStriing =
+    '{"f0926ca0-b7cd-11ed-a5a0-ff605626239b":0,"8d086660-b7f2-11ed-a5a0-ff605626239b":74,"6568fbf0-b8d4-11ed-afed-cb51a3c89613":80,"b9d3f422-b80b-11ed-9a3a-cb43db96bcea":88,"66ba8230-b8d4-11ed-afed-cb51a3c89613":108}'
 
   function stripPrefixes(obj: Record<string, any>) {
     return Object.entries(obj).reduce((p, [key, value]) => {
@@ -45,16 +49,18 @@
   let localeKey = 'en'
   let maxLength: number
 
+  // let tomatoLineInfo = JSON.parse(lienInfoStriing)
   let tomatoLineInfo = {
     uuid0: 0,
-    uuid2: 2,
-    uuid4: 4,
+    uuid271: 271,
   }
-
   let tomatoCountInfo = {
-    uuid0: 1,
-    uuid2: 2,
-    uuid4: 3,
+    // uuid0: 1,
+    // uuid2: 2,
+    // uuid271: 271,
+    // '8d086660-b7f2-11ed-a5a0-ff605626239b': 1,
+    // 'b9d3f422-b80b-11ed-9a3a-cb43db96bcea': 5,
+    // 'f0926ca0-b7cd-11ed-a5a0-ff605626239b': 6,
   }
 
   let playingUuid
@@ -68,6 +74,24 @@
     }),
     highlight(),
   ].filter((x) => x)
+
+  onMount(() => {
+    setTimeout(() => {
+      tomatoCountInfo = {
+        uuid0: 1,
+        // uuid2: 2,
+        uuid271: 271,
+        '8d086660-b7f2-11ed-a5a0-ff605626239b': 1,
+        'b9d3f422-b80b-11ed-9a3a-cb43db96bcea': 5,
+        'f0926ca0-b7cd-11ed-a5a0-ff605626239b': 6,
+      }
+      // tomatoCountInfo = {
+      //   '8d086660-b7f2-11ed-a5a0-ff605626239b': 1,
+      //   'b9d3f422-b80b-11ed-9a3a-cb43db96bcea': 5,
+      //   'f0926ca0-b7cd-11ed-a5a0-ff605626239b': 6,
+      // }
+    }, 3300)
+  })
 </script>
 
 <div class="container">
@@ -100,18 +124,18 @@
       const { uuid } = e.detail.value
       playingUuid = uuid
 
-      // setTimeout(() => {
-      //   playingUuid = ''
-      //   // 更新tomatoCountInfo
-      //   const copy = { ...tomatoCountInfo }
-      //   if (copy[uuid]) {
-      //     copy[uuid] += 1
-      //   } else {
-      //     copy[uuid] = 1
-      //   }
-      //   tomatoCountInfo = copy
-      //   localStorage.setItem('tomatoCountInfo', JSON.stringify(copy))
-      // }, 2000)
+      setTimeout(() => {
+        playingUuid = ''
+        // 更新tomatoCountInfo
+        const copy = { ...tomatoCountInfo }
+        if (copy[uuid]) {
+          copy[uuid] += 1
+        } else {
+          copy[uuid] = 1
+        }
+        tomatoCountInfo = copy
+        // localStorage.setItem('tomatoCountInfo', JSON.stringify(copy))
+      }, 3000)
     }}
     on:tomatoLineInfoChange={(e) => {
       console.log('LineInfoChange', e.detail.value)

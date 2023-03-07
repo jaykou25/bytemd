@@ -367,8 +367,15 @@ export function getBuiltinActions(
 }
 
 // 单纯靠正则来判断header是不准确的, 比如在yaml格式下 # 是代表注释
-export const isHeader = (text: string) => {
+export const isHeading = (text: string) => {
   return /^#+ /.test(text)
+}
+
+/**
+ * 判断是不是listItem
+ */
+export const isListItem = (text: string) => {
+  return /\s*\d+\. /.test(text) || /\s*\* /.test(text)
 }
 
 export const addPlayIcon = (doc: any, index: number, uuid?: string) => {
@@ -566,6 +573,14 @@ export const getUuidByClass = (nameList: string) => {
   }
 }
 
+export const getUuidByWidgets = (widgets: any) => {
+  const widgetClassName = (widgets || []).find((widget: any) =>
+    widget.className.includes('tomatowidget')
+  )?.className
+
+  return getUuidByClass(widgetClassName || '')
+}
+
 export const getLineIndexByClass = (classList: string = '') => {
   const list = classList.split(' ')
   const indexClass = list.find((name) => name.includes('lineIndex'))
@@ -596,8 +611,19 @@ export const showViewerPlaying = (body: any, uuid: string) => {
   body.classList.add('playing')
   const target = body.querySelector(`.playbtn_${uuid}`)
   if (target) {
+    // 外层, 绝对定位, 高度是父级的line-height (父级可能是多行)
     const div = document.createElement('div')
-    div.className = 'tomatoPlaying viewerPlaying'
+    div.className = 'tomatoPlayingWrapper'
+
+    if (target.tagName === 'LI') div.classList.add('liWrapper')
+
+    // innerFont 用来控制wrapper的高度的, 它的line-height会继承外层
+    div.innerHTML = `
+     <span class='innerFont'>0</span>
+     <div class='innerWrapper'>
+        <span class='viewerPlaying'></span>
+      </div>
+    `
     target.append(div)
   }
 }
@@ -670,9 +696,32 @@ export const getLineTextAfterMulti = (
   return x + replacement + y
 }
 
+/**
+ * 判断文本从有uuid到一般段落
+ * @returns boolean
+ */
+export const formatWillBreak = (lineHandle: any, change: any) => {
+  const textBefore = lineHandle.text
+  return (
+    hasPlayWidget(lineHandle.widgets) &&
+    !isFormatText(getLineTextAfter(textBefore, change))
+  )
+}
+
+/**
+ * 判断文字是不是可以开始番茄
+ * 1. heading格式
+ * 2. listItem格式
+ *
+ * 用正则来判断
+ */
+export const isFormatText = (text: string) => {
+  return isHeading(text) || isListItem(text)
+}
+
 // 判断文字的样式是否会变化, 比如从header变到普通或者普通变成header
 export const isFormatWillChange = (textBefore: string, textAfter: string) => {
-  return isHeader(textBefore) !== isHeader(textAfter)
+  return isFormatText(textBefore) !== isFormatText(textAfter)
 }
 
 /*
@@ -741,15 +790,13 @@ export const getMultiLineInfo = (
       // 保留首行
       for (let i = fromLine; i <= line; i++) {
         const lineHandle = editor.getLineHandle(i)
-        // !这个lineText是change前的!!
-        const lineText = lineHandle.text
 
         if (i === fromLine) {
           // 首行
           const textUp = editor.getLine(fromLine)
           const textDown = editor.getLine(line)
           const textAfter = getLineTextAfterMulti(textUp, textDown, change)
-          if (!isHeader(textAfter) && hasCountWidget(lineHandle.widgets)) {
+          if (!isFormatText(textAfter) && hasCountWidget(lineHandle.widgets)) {
             hasTomatoCount = true
             const count = getTomatoCount(lineHandle.widgets)
 
@@ -768,4 +815,85 @@ export const getMultiLineInfo = (
   }
 
   return { hasTomatoCount, tomatoLineInfo }
+}
+
+export const lineChangeHasPlayingUuid = (
+  editor: any,
+  change: any,
+  playingUuid?: string
+) => {
+  const {
+    from: { line: fromLine, ch: fromCh },
+    to: { line, ch },
+  } = change
+
+  let result = false
+
+  // 单行情况
+  if (fromLine === line) {
+    const lineHandle = editor.getLineHandle(fromLine)
+
+    if (formatWillBreak(lineHandle, change)) {
+      const uuid = getUuidByWidgets(lineHandle.widgets)
+      if (uuid === playingUuid) {
+        return true
+      }
+    }
+  } else {
+    /* 多行情况
+      处理多行情况要考虑行的留存, 大部分情况下都是保留的起始行. 
+      只有一种情况是保留的末行(即from和to的ch都为0)
+      保留末行的处理逻辑很简单, 只需要考虑末行外的其它行
+
+      保留首行的处理逻辑是除首行外其它行都会被销毁, 所以其它行需要考虑有无番茄数.
+      而首行需要先进行合并, 然后根据合并后的结果看它是否有番茄数
+    */
+
+    // 保留末行
+    if (fromCh === 0 && ch === 0) {
+      for (let i = fromLine; i < line; i++) {
+        const lineHandle = editor.getLineHandle(i)
+        if (hasPlayWidget(lineHandle.widgets)) {
+          const uuid = getUuidByWidgets(lineHandle.widgets)
+          if (playingUuid === uuid) {
+            result = true
+            break
+          }
+        }
+      }
+      if (result) return result
+    } else {
+      // 保留首行
+      for (let i = fromLine; i <= line; i++) {
+        const lineHandle = editor.getLineHandle(i)
+        // !这个lineText是change前的!!
+        const lineText = lineHandle.text
+
+        if (i === fromLine) {
+          // 首行
+          const textUp = editor.getLine(fromLine)
+          const textDown = editor.getLine(line)
+          const textAfter = getLineTextAfterMulti(textUp, textDown, change)
+          if (!isFormatText(textAfter) && hasPlayWidget(lineHandle.widgets)) {
+            const uuid = getUuidByWidgets(lineHandle.widgets)
+            if (uuid === playingUuid) {
+              result = true
+              break
+            }
+          }
+        } else {
+          // 其它行
+          if (hasPlayWidget(lineHandle.widgets)) {
+            const uuid = getUuidByWidgets(lineHandle.widgets)
+            if (uuid === playingUuid) {
+              result = true
+              break
+            }
+          }
+        }
+      }
+      if (result) return result
+    }
+  }
+  return result
 }

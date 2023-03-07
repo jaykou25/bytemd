@@ -33,7 +33,10 @@ export default function (CodeMirror) {
     body.className = 'confirmation-body'
 
     dialog.appendChild(body)
-    dialog.appendChild(footer)
+
+    if (options.onConfirm) {
+      dialog.appendChild(footer)
+    }
 
     if (typeof template == 'string') {
       body.innerHTML = template

@@ -3,8 +3,9 @@ import {
   getLineTextAfter,
   getLineTextAfterMulti,
   isFormatWillChange,
+  isHeading,
+  isListItem,
 } from '../src/editor'
-import { head } from 'lodash-es'
 import { describe, test, expect } from 'vitest'
 
 // 只处理单行问题, 为了简化
@@ -217,11 +218,27 @@ describe('getLineTextMulti', () => {
 describe('isFormatWillChange', () => {
   const header = '# header'
   const p = 'para'
+  const ol = '1. hello'
+  const olBefore = '  1. hello'
+  const ul = '* hello'
+  const ulBefore = '  * hello'
   test('从header到p', () => {
     expect(isFormatWillChange(header, p)).toBeTruthy()
     expect(isFormatWillChange(p, header)).toBeTruthy()
     expect(isFormatWillChange(p, p)).toBeFalsy()
     expect(isFormatWillChange(header, header)).toBeFalsy()
+  })
+
+  test('从ol到p', () => {
+    expect(isFormatWillChange(ol, p)).toBeTruthy()
+    expect(isFormatWillChange(p, ol)).toBeTruthy()
+    expect(isFormatWillChange(ol, olBefore)).toBeFalsy()
+  })
+
+  test('从ul到p', () => {
+    expect(isFormatWillChange(ul, p)).toBeTruthy()
+    expect(isFormatWillChange(p, ul)).toBeTruthy()
+    expect(isFormatWillChange(ul, ulBefore)).toBeFalsy()
   })
 })
 
@@ -230,5 +247,27 @@ describe('utils系列', () => {
     expect(getLineIndexByClass('lineIndex-3')).toBe(3)
     expect(getLineIndexByClass('')).toBe(undefined)
     expect(getLineIndexByClass()).toBe(undefined)
+  })
+
+  test('isHeading', () => {
+    expect(isHeading('## hello')).toBeTruthy()
+
+    expect(isHeading('##hello')).toBeFalsy()
+    expect(isHeading('##')).toBeFalsy()
+    expect(isHeading(' ## hello')).toBeFalsy()
+    expect(isHeading(' ##hello')).toBeFalsy()
+  })
+
+  test('isListItem', () => {
+    expect(isListItem('1. hello')).toBeTruthy()
+    expect(isListItem('* hello')).toBeTruthy()
+
+    expect(isListItem('  1. hello')).toBeTruthy()
+    expect(isListItem('  * hello')).toBeTruthy()
+
+    expect(isListItem('1.')).toBeFalsy()
+    expect(isListItem('*')).toBeFalsy()
+
+    expect(isListItem('hello.')).toBeFalsy()
   })
 })

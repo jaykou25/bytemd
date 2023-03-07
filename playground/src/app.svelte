@@ -151,18 +151,18 @@
       const { uuid } = e.detail.value
       playingUuid = uuid
 
-      setTimeout(() => {
-        playingUuid = ''
-        // 更新tomatoCountInfo
-        const copy = { ...tomatoCountInfo }
-        if (copy[uuid]) {
-          copy[uuid] += 1
-        } else {
-          copy[uuid] = 1
-        }
-        tomatoCountInfo = copy
-        localStorage.setItem('tomatoCountInfo', JSON.stringify(copy))
-      }, 13000)
+      // setTimeout(() => {
+      //   playingUuid = ''
+      //   // 更新tomatoCountInfo
+      //   const copy = { ...tomatoCountInfo }
+      //   if (copy[uuid]) {
+      //     copy[uuid] += 1
+      //   } else {
+      //     copy[uuid] = 1
+      //   }
+      //   tomatoCountInfo = copy
+      //   localStorage.setItem('tomatoCountInfo', JSON.stringify(copy))
+      // }, 130000)
     }}
     on:tomatoLineInfoChange={(e) => {
       console.log('LineInfoChange', e.detail.value)

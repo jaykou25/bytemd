@@ -85,7 +85,10 @@
               return (tree) => {
                 const lineUuidMap = reverseTomatoLineInfo(tomatoLineInfo)
                 visit(tree, 'element', (node) => {
-                  if (/^h[123456]/.test(node.tagName)) {
+                  if (
+                    node.tagName === 'li' ||
+                    /^h[123456]/.test(node.tagName)
+                  ) {
                     const {
                       position: {
                         start: { line },
@@ -102,11 +105,17 @@
                       children: [
                         {
                           type: 'element',
-                          tagName: 'span',
+                          tagName: 'div',
                           children: [
                             {
-                              type: 'text',
-                              value: count ? count.toString() : '',
+                              type: 'element',
+                              tagName: 'span',
+                              children: [
+                                {
+                                  type: 'text',
+                                  value: count ? count.toString() : '',
+                                },
+                              ],
                             },
                           ],
                         },

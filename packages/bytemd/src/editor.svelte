@@ -17,6 +17,7 @@
     hideViewerPlaying,
     updateLineIndex,
     updateTomatoLineInfo2,
+    lineChangeHasPlayingUuid,
   } from './editor'
   import Help from './help.svelte'
   import { icons } from './icons'
@@ -102,7 +103,7 @@
   })()
 
   $: if (playingUuid) {
-    showPlaying(editor.getDoc(), playingUuid)
+    if (editor) showPlaying(editor.getDoc(), playingUuid)
   } else {
     if (editor) hidePlaying(editor.getDoc())
   }
@@ -288,6 +289,17 @@
       }
 
       console.log('before change', change)
+
+      /**
+       * 如果改变行正好是正在番茄中的行, 请发出警告, 并取消改动
+       */
+      if (lineChangeHasPlayingUuid(ins, change, playingUuid)) {
+        change.cancel()
+        ins.openConfirmation('', {
+          title: '段落正在进行番茄中, 此操作无法进行!',
+        })
+        return
+      }
 
       // !处理行上有番茄的情况
       // 多行删除要考虑末行dom移除问题.

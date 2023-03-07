@@ -342,7 +342,8 @@ $max-width: 800px;
   border-radius: 3px;
 }
 
-.tomatoPlaying::after {
+.tomatoPlaying::after,
+.viewerPlaying::after {
   position: absolute;
   inset: 0;
   border-width: 1px;
@@ -394,17 +395,24 @@ $max-width: 800px;
   right: 18px;
   z-index: 99;
   top: 0;
-  bottom: 0;
+  // bottom: 0;
+  // height: 24px;
+  left: 0;
   padding-bottom: inherit;
   cursor: pointer;
-  visibility: hidden;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  line-height: 0;
+  justify-content: flex-start;
+  align-items: flex-end;
+  line-height: inherit;
 }
 
-.line-wrapper:hover .line-playbtn {
+.line-playbtn > .playBtn {
+  margin-top: 2px;
+  visibility: hidden;
+}
+
+.line-playbtn:hover > .playBtn {
   visibility: visible;
 }
 
@@ -413,12 +421,16 @@ $max-width: 800px;
   right: 8px;
   z-index: 99;
   top: 0;
-  bottom: 0;
-  font-size: 13px;
+  line-height: inherit;
+  // bottom: 0;
   padding-bottom: inherit;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: flex-start;
+}
+
+.line-tomatocount span {
+  font-size: 13px;
 }
 
 .markdown-body.playing .line-playbtn {
@@ -426,5 +438,33 @@ $max-width: 800px;
 }
 
 .viewerPlaying {
-  left: -15px;
+  position: relative;
+  background-color: #19ae19;
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+}
+
+.tomatoPlayingWrapper {
+  position: absolute;
+  left: -16px;
+  top: 0;
+  line-height: inherit;
+}
+
+.liWrapper {
+  left: -32px;
+}
+
+.innerFont {
+  opacity: 0;
+}
+
+.innerWrapper {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 1px;
 }

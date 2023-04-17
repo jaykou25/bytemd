@@ -190,7 +190,28 @@
     console.error(err)
   }
 
+  function addClass(e: any) {
+    e.stopPropagation()
+    e.currentTarget.classList.add('active')
+  }
+
+  function removeClass(e: any) {
+    e.currentTarget.classList.remove('active')
+  }
+
   afterUpdate(() => {
+    if (markdownBody) {
+      markdownBody.querySelectorAll('.line-wrapper').forEach((line) => {
+        line.removeEventListener('mouseover', addClass)
+        line.removeEventListener('mouseout', removeClass)
+      })
+
+      markdownBody.querySelectorAll('.line-wrapper').forEach((line) => {
+        line.addEventListener('mouseover', addClass)
+        line.addEventListener('mouseout', removeClass)
+      })
+    }
+
     // TODO: `off` should be called before DOM update
     // https://github.com/sveltejs/svelte/issues/6016
     off()

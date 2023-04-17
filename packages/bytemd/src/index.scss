@@ -397,7 +397,7 @@ $max-width: 800px;
   top: 0;
   // bottom: 0;
   // height: 24px;
-  left: 0;
+  // left: 0;
   padding-bottom: inherit;
   cursor: pointer;
   display: flex;
@@ -405,6 +405,10 @@ $max-width: 800px;
   justify-content: flex-start;
   align-items: flex-end;
   line-height: inherit;
+}
+
+.line-wrapper.active > .line-playbtn > .playBtn {
+  visibility: visible;
 }
 
 .line-playbtn > .playBtn {

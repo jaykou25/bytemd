@@ -43,7 +43,7 @@
     })
   )
 
-  let value = localStorage.getItem('mdText') || markdownText
+  let value = ''
   let mode = 'tab'
   let localeKey = 'en'
   let maxLength: number
@@ -59,21 +59,11 @@
     mermaid: true,
   }
 
-  let tomatoLineInfo = localStorage.getItem('tomatoLineInfo')
-    ? JSON.parse(localStorage.getItem('tomatoLineInfo'))
-    : {
-        uuid1: 0,
-        uuid2: 2,
-      }
+  let tomatoLineInfo = undefined
 
-  let tomatoCountInfo = localStorage.getItem('tomatoCountInfo')
-    ? JSON.parse(localStorage.getItem('tomatoCountInfo'))
-    : {
-        uuid1: 1,
-        uuid2: 2,
-      }
+  let tomatoCountInfo = undefined
 
-  let playingUuid
+  let playingUuid = 'uuid1'
 
   $: plugins = [
     enabled.breaks && breaks(),
@@ -95,6 +85,26 @@
         locale: mermaidLocales[localeKey],
       }),
   ].filter((x) => x)
+
+  // 模拟网络请求
+  setTimeout(() => {
+    value = localStorage.getItem('mdText') || markdownText
+    tomatoLineInfo = localStorage.getItem('tomatoLineInfo')
+      ? JSON.parse(localStorage.getItem('tomatoLineInfo'))
+      : {
+          uuid1: 0,
+          // uuid2: 2,
+        }
+  }, 2000)
+
+  setTimeout(() => {
+    tomatoCountInfo = localStorage.getItem('tomatoCountInfo')
+      ? JSON.parse(localStorage.getItem('tomatoCountInfo'))
+      : {
+          uuid1: 1,
+          // uuid2: 2,
+        }
+  }, 2500)
 </script>
 
 <div class="container">

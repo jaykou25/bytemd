@@ -437,8 +437,8 @@ $max-width: 800px;
   font-size: 13px;
 }
 
-.markdown-body.playing .line-playbtn {
-  visibility: hidden;
+.markdown-body.playing .line-playbtn .playBtn {
+  visibility: hidden !important;
 }
 
 .viewerPlaying {

@@ -102,13 +102,12 @@
     return { edit, preview }
   })()
 
-  $: if (playingUuid) {
-    if (editor) showPlaying(editor.getDoc(), playingUuid)
-  } else {
-    if (editor) hidePlaying(editor.getDoc())
+  // 这里的顺序是重要的
+  $: if (editor && value !== editor.getValue()) {
+    console.log('never')
+    editor.setValue(value)
   }
 
-  // 这里的顺序是重要的
   $: if (editor) {
     updateLineIndex(editor.getDoc(), value)
     /**
@@ -146,6 +145,11 @@
 
   $: if (editor) {
     syncTomatoWidget(editor.getDoc(), tomatoLineInfo, tomatoCountInfo)
+    if (playingUuid) {
+      showPlaying(editor.getDoc(), playingUuid)
+    } else {
+      hidePlaying(editor.getDoc())
+    }
   }
 
   $: context = (() => {
@@ -206,11 +210,6 @@
     })
   }, previewDebounce)
   $: setDebouncedValue(value)
-
-  $: if (editor && value !== editor.getValue()) {
-    console.log('never')
-    editor.setValue(value)
-  }
 
   $: if (editor && plugins) {
     off()

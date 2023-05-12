@@ -179,38 +179,38 @@ export function getBuiltinActions(
   uploadImages: EditorProps['uploadImages']
 ): { leftActions: BytemdAction[]; rightActions: BytemdAction[] } {
   const leftActions: BytemdAction[] = [
-    {
-      icon: icons.H,
-      handler: {
-        type: 'dropdown',
-        actions: [1, 2, 3, 4, 5, 6].map((level) => ({
-          title: locale[`h${level}` as keyof BytemdLocale],
-          icon: [
-            icons.H1,
-            icons.H2,
-            icons.H3,
-            icons.LevelFourTitle,
-            icons.LevelFiveTitle,
-            icons.LevelSixTitle,
-          ][level - 1],
-          cheatsheet:
-            level <= 3
-              ? `${'#'.repeat(level)} ${locale.headingText}`
-              : undefined,
-          handler: {
-            type: 'action',
-            click({ replaceLines, editor }) {
-              replaceLines((line) => {
-                line = line.trim().replace(/^#*/, '').trim()
-                line = '#'.repeat(level) + ' ' + line
-                return line
-              })
-              editor.focus()
-            },
-          },
-        })),
-      },
-    },
+    // {
+    //   icon: icons.H,
+    //   handler: {
+    //     type: 'dropdown',
+    //     actions: [1, 2, 3, 4, 5, 6].map((level) => ({
+    //       title: locale[`h${level}` as keyof BytemdLocale],
+    //       icon: [
+    //         icons.H1,
+    //         icons.H2,
+    //         icons.H3,
+    //         icons.LevelFourTitle,
+    //         icons.LevelFiveTitle,
+    //         icons.LevelSixTitle,
+    //       ][level - 1],
+    //       cheatsheet:
+    //         level <= 3
+    //           ? `${'#'.repeat(level)} ${locale.headingText}`
+    //           : undefined,
+    //       handler: {
+    //         type: 'action',
+    //         click({ replaceLines, editor }) {
+    //           replaceLines((line) => {
+    //             line = line.trim().replace(/^#*/, '').trim()
+    //             line = '#'.repeat(level) + ' ' + line
+    //             return line
+    //           })
+    //           editor.focus()
+    //         },
+    //       },
+    //     })),
+    //   },
+    // },
     {
       title: locale.bold,
       icon: icons.TextBold,
@@ -354,6 +354,10 @@ export function getBuiltinActions(
   plugins.forEach(({ actions }) => {
     if (actions) {
       actions.forEach((action) => {
+        // h5里dropdown的先隐藏
+        if (action.handler?.type === 'dropdown') {
+          return
+        }
         if (!action.position || action.position !== 'right')
           leftActions.push(action)
         else rightActions.unshift(action)
@@ -598,6 +602,7 @@ export const showPlaying = (doc: any, uuid: string) => {
 
   const span = document.createElement('span')
   const target = document.querySelector(`.playbtn_${uuid}`)
+  console.log('showPlaying', { target })
   if (target) {
     const wrapper = target.closest('.lineWrapper')
     const lineIndex = getLineIndexByClass(wrapper?.className)

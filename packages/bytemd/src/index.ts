@@ -1,4 +1,5 @@
 import './index.scss'
+import './weui.min.css'
 
 export * from './types'
 export { default as Editor } from './editor.svelte'

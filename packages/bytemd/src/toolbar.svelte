@@ -241,56 +241,19 @@
 </script>
 
 <div
-  class="bytemd-toolbar"
+  class="bytemd-toolbar toolbar"
   bind:this={toolbar}
   on:click={handleClick}
   on:keydown|self={(e) => ['Enter', 'Space'].includes(e.code) && handleClick(e)}
 >
-  <div class="bytemd-toolbar-left">
-    {#if split}
-      {#each actions as item, index}
-        {#if item.handler}
-          <div
-            class={['bytemd-toolbar-icon', tippyClass].join(' ')}
-            bytemd-tippy-path={index}
-          >
-            {@html item.icon}
-          </div>
-        {/if}
-      {/each}
-    {:else}
+  {#each actions as item, index}
+    {#if item.handler}
       <div
-        on:click={() => dispatch('tab', 'write')}
-        on:keydown|self={(e) =>
-          ['Enter', 'Space'].includes(e.code) && dispatch('tab', 'write')}
-        class="bytemd-toolbar-tab"
-        class:bytemd-toolbar-tab-active={activeTab !== 'preview'}
+        class={['bytemd-toolbar-icon', tippyClass].join(' ')}
+        bytemd-tippy-path={index}
       >
-        {locale.write}
-      </div>
-      <div
-        on:click={() => dispatch('tab', 'preview')}
-        on:keydown|self={(e) =>
-          ['Enter', 'Space'].includes(e.code) && dispatch('tab', 'preview')}
-        class="bytemd-toolbar-tab"
-        class:bytemd-toolbar-tab-active={activeTab === 'preview'}
-      >
-        {locale.preview}
+        {@html item.icon}
       </div>
     {/if}
-  </div>
-
-  <div class="bytemd-toolbar-right">
-    {#each rightActions as item, index}
-      {#if !item.hidden}
-        <div
-          class={['bytemd-toolbar-icon', tippyClass, tippyClassRight].join(' ')}
-          class:bytemd-toolbar-icon-active={item.active}
-          bytemd-tippy-path={index}
-        >
-          {@html item.icon}
-        </div>
-      {/if}
-    {/each}
-  </div>
+  {/each}
 </div>

@@ -15,6 +15,7 @@ import { build } from 'vite'
 
 ;(async () => {
   for (let name of packages) {
+    // if (name !== 'bytemd') return
     console.log('[building]', name)
 
     const root = path.resolve(packagesDir, name)
@@ -88,6 +89,9 @@ import { build } from 'vite'
 
       await build({
         root,
+        define: {
+          'process.env.NODE_ENV': '"production"',
+        },
         build: {
           emptyOutDir: false,
           minify: legacy,

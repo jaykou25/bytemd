@@ -52,3 +52,11 @@ export const getMdParser = (plugins: ViewerProps['plugins']) => {
 
   return processor
 }
+
+export const isIos = () => {
+  return /(iPhone|iPad|iPod|iOS)/i.test(navigator.userAgent)
+}
+
+export const isAndroid = () => {
+  return /(Android)/i.test(navigator.userAgent)
+}

@@ -2,18 +2,167 @@
 @import 'tippy.js/dist/tippy.css';
 @import 'tippy.js/themes/light-border.css';
 @import '@primer/css/support/variables/color-system.scss';
+@import './iconfont.css';
 
-$border-color: $gray-200;
+// $border-color: $gray-200;
+$border-color: #e4e4e4;
 $primary: $blue;
 $sidebar-width: 280px;
 $max-width: 800px;
 
+.outline {
+  height: 100vh;
+  width: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 15;
+  height: 48px;
+  background-color: #fff;
+  border-bottom: 0.5px solid #e4e4e4;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  touch-action: none;
+}
+
+.status-area {
+  flex: none;
+  margin-right: 30px;
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.status-area > i {
+  vertical-align: -1px;
+  margin-right: 3px;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes showEffect {
+  0% {
+    opacity: 0.1;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.syncIcon {
+  display: inline-block;
+  animation: spin 1.2s linear infinite;
+  z-index: -1; // 旋转的图标会遮挡左侧的元素, 原因不清楚
+}
+
+.doneIcon {
+  animation: showEffect 300ms linear;
+}
+
+.alertIcon {
+  color: #dc3545;
+}
+
+.right-area {
+  flex: auto;
+  overflow: hidden;
+}
+
+.right-area > div {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 14px;
+  padding-left: 6px;
+}
+
+.headerPlaying {
+  display: inline-block;
+  z-index: 99;
+  background-color: #19ae19;
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  position: relative;
+  margin-right: 3px;
+  vertical-align: 2px;
+}
+
+.container {
+  display: block;
+  height: 100%;
+  width: 100%;
+  position: relative;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+body::-webkit-scrollbar {
+  display: none;
+}
+
+.toolbar::-webkit-scrollbar {
+  display: none;
+}
+.toolbar {
+  box-sizing: border-box;
+  display: none;
+  // top: 100px;
+  bottom: 0;
+}
+
+.toolbar::before {
+  content: '';
+  display: inline-block;
+  height: 100%;
+  vertical-align: middle;
+}
+
+.safe {
+  background-color: #f7f7f7;
+  color: #bbb;
+  font-size: 18px;
+  display: flex;
+  justify-content: center;
+  height: 200px;
+  align-items: center;
+}
+
+.top-toast-no-icon {
+  .weui-icon_toast {
+    display: none !important;
+  }
+
+  .weui-toast {
+    top: 20%;
+
+    width: auto;
+    height: auto;
+    min-width: 152px;
+    max-width: 216px;
+    padding: 12px 0;
+    border-radius: 8px;
+  }
+}
+
 .bytemd {
   // reset
-  box-sizing: border-box;
-  * {
-    box-sizing: border-box;
-  }
   &-hidden {
     display: none !important;
   }
@@ -41,11 +190,21 @@ $max-width: 800px;
   }
 
   &-toolbar {
-    padding: 4px 12px;
-    border-bottom: 1px solid $border-color;
+    box-sizing: border-box;
+    height: 50px;
+    padding: 0 12px;
+    border-top: 0.5px solid $border-color;
     background-color: $gray-000;
-    user-select: none;
-    overflow: hidden;
+
+    overflow-x: auto;
+    // -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+    white-space: nowrap;
+
+    z-index: 99;
+    position: absolute;
+    left: 0px;
+    right: 0px;
 
     &-left {
       float: left;
@@ -69,7 +228,7 @@ $max-width: 800px;
 
     &-icon {
       display: inline-block;
-      vertical-align: top;
+      vertical-align: middle;
       cursor: pointer;
       border-radius: 4px;
       margin-left: 6px;
@@ -78,8 +237,8 @@ $max-width: 800px;
       img {
         display: block;
         padding: 4px;
-        width: 24px;
-        height: 24px;
+        width: 20px;
+        height: 20px;
       }
       &:hover {
         background-color: $border-color;
@@ -131,16 +290,12 @@ $max-width: 800px;
     }
   }
 
-  &-body {
-    height: calc(100% - 33px - 25px);
-    overflow: auto;
-  }
-
+  // 滚动发生在这里!!
   &-editor {
+    margin-top: 48px;
     display: inline-block;
     vertical-align: top;
-    height: 100%;
-    overflow: hidden;
+    min-height: 100%;
     .CodeMirror {
       height: 100%;
       font-size: 14px;
@@ -343,9 +498,13 @@ $max-width: 800px;
 }
 
 .tomatoPlaying::after,
-.viewerPlaying::after {
+.viewerPlaying::after,
+.headerPlaying::after {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   border-width: 1px;
   border-color: inherit;
   border-style: solid;
@@ -471,4 +630,16 @@ $max-width: 800px;
   justify-content: center;
   align-items: center;
   margin-top: 1px;
+}
+
+@keyframes jay {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.myFadeOut {
+  animation: jay ease 0.3s forwards !important;
 }

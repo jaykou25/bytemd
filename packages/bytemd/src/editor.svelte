@@ -13,23 +13,18 @@
     hidePlaying,
     syncTomatoWidget,
     getMultiLineInfo,
-    showViewerPlaying,
-    hideViewerPlaying,
     updateLineIndex,
     updateTomatoLineInfo2,
     lineChangeHasPlayingUuid,
   } from './editor'
-  import Help from './help.svelte'
-  import { icons } from './icons'
-  import Status from './status.svelte'
-  import Toc from './toc.svelte'
   import Toolbar from './toolbar.svelte'
   import type {
     BytemdEditorContext,
     BytemdPlugin,
     EditorProps as Props,
   } from './types'
-  import Viewer from './viewer.svelte'
+  import { isAndroid, isIos } from './utils'
+  import weui from './weuisimple'
   import type { Editor, KeyMap } from 'codemirror'
   import type { Root, Element } from 'hast'
   import { debounce, throttle } from 'lodash-es'
@@ -47,10 +42,11 @@
   export let locale: Props['locale'] = undefined
   export let uploadImages: Props['uploadImages'] = undefined
   export let overridePreview: Props['overridePreview'] = undefined
-  export let maxLength: NonNullable<Props['maxLength']> = Infinity
   export let tomatoLineInfo: any = {}
   export let tomatoCountInfo: any = {}
   export let playingUuid: string | undefined
+  export let status: 'loading' | 'saved' | 'failed' | undefined
+  export let todoName: string | undefined = undefined
 
   $: mergedLocale = { ...en, ...locale }
   const dispatch = createEventDispatcher<{
@@ -102,14 +98,13 @@
     return { edit, preview }
   })()
 
-  $: if (playingUuid) {
-    if (editor) showPlaying(editor.getDoc(), playingUuid)
-  } else {
-    if (editor) hidePlaying(editor.getDoc())
+  // 这里的顺序是重要的
+  $: if (editor && value !== editor.getValue()) {
+    editor.setValue(value)
   }
 
-  // 这里的顺序是重要的
   $: if (editor) {
+    console.log('更新line相关')
     updateLineIndex(editor.getDoc(), value)
     /**
      2023.3.3 
@@ -134,6 +129,7 @@
      所以要在第3步的语句里加入tick(), tick里的语句会有第4步之后再执行. 
     */
     tick().then(() => {
+      console.log('更新tomatoLineInfo2')
       updateTomatoLineInfo2(
         value,
         plugins,
@@ -145,7 +141,15 @@
   }
 
   $: if (editor) {
+    console.log('同步tomatoWidget')
     syncTomatoWidget(editor.getDoc(), tomatoLineInfo, tomatoCountInfo)
+
+    if (playingUuid) {
+      console.log('showPlaying')
+      showPlaying(editor.getDoc(), playingUuid)
+    } else {
+      hidePlaying(editor.getDoc())
+    }
   }
 
   $: context = (() => {
@@ -207,11 +211,6 @@
   }, previewDebounce)
   $: setDebouncedValue(value)
 
-  $: if (editor && value !== editor.getValue()) {
-    console.log('never')
-    editor.setValue(value)
-  }
-
   $: if (editor && plugins) {
     off()
     tick().then(() => {
@@ -243,7 +242,7 @@
       }, // https://github.com/codemirror/CodeMirror/blob/c955a0fb02d9a09cf98b775cb94589e4980303c1/mode/markdown/index.html#L359
       ...editorConfig,
       placeholder,
-      lineNumbers: true,
+      // lineNumbers: true,
     })
 
     console.log('svelte onmount:', { value, tomatoLineInfo })
@@ -295,9 +294,11 @@
        */
       if (lineChangeHasPlayingUuid(ins, change, playingUuid)) {
         change.cancel()
-        ins.openConfirmation('', {
-          title: '段落正在进行番茄中, 此操作无法进行!',
+        weui.toast('不能破坏正在番茄中的段落!', {
+          duration: 2000,
+          className: 'top-toast-no-icon',
         })
+
         return
       }
 
@@ -309,21 +310,30 @@
       const { hasTomatoCount, tomatoLineInfo } = getMultiLineInfo(ins, change)
 
       if (hasTomatoCount) {
-        const lines = tomatoLineInfo
-          .map(
-            (info, index) =>
-              `<tr><td>${index + 1}</td><td class="t-text">${
-                info.text
-              }</td><td>${info.count}</td></tr>`
-          )
-          .join('')
-        const confirmText = `<table><tr><td class="t-index">序号</td><td class="t-text">段落内容</td><td class="t-count">蕃茄数</td></tr>${lines}</table>`
+        // const lines = tomatoLineInfo
+        //   .map(
+        //     (info, index) =>
+        //       `<tr><td>${index + 1}</td><td class="t-text">${
+        //         info.text
+        //       }</td><td>${info.count}</td></tr>`
+        //   )
+        //   .join('')
+        // const confirmText = `<table><tr><td class="t-index">序号</td><td class="t-text">段落内容</td><td class="t-count">蕃茄数</td></tr>${lines}</table>`
 
-        ins.openConfirmation(confirmText, {
-          title: '此操作会移除段落上的番茄数据',
-          footerTitle: '确认要执行此操作吗?',
-          onConfirm: () => {
-            console.log('confirm')
+        /**
+         * codeMirror5 中默认mobile端的inputStyle是contenteditable
+         * pc端上是一个隐藏的textarea
+         */
+        const codeEditor: HTMLElement | null = document.querySelector(
+          ".CodeMirror-code[contenteditable='true']"
+        )
+
+        codeEditor?.blur()
+
+        weui.confirm(
+          '此操作会移除段落上的番茄数据',
+          () => {
+            codeEditor?.focus()
             ins.state.isConfirm = true
             ins.replaceRange(
               text,
@@ -332,7 +342,10 @@
               origin
             )
           },
-        })
+          () => {
+            codeEditor?.focus()
+          }
+        )
 
         change.cancel()
       }
@@ -454,9 +467,6 @@
     }
 
     editor.on('scroll', editorScrollHandler)
-    previewEl.addEventListener('scroll', previewScrollHandler, {
-      passive: true,
-    })
 
     // handle image drop and paste
     const handleImages = async (
@@ -492,6 +502,167 @@
       // console.log(containerWidth);
     }).observe(root, { box: 'border-box' })
 
+    const toolbar: HTMLElement | null = document.querySelector('.toolbar')
+    const vp = window.visualViewport
+    let startY = 0
+    let endY = 0
+    const editorBody: any = document.querySelector('.bytemd-body')
+    const container: any = document.querySelector('.container')
+    const safe: any = document.querySelector('.safe')
+    const screenHeight = vp?.height || 0
+    let keyboardHeight = 0
+
+    editor.on('focus', (e) => {
+      console.log('focusd', e)
+      // if (editorBody) {
+      //   editorBody.scrollTop = 0
+      // }
+    })
+
+    // editor.on('blur', () => {
+    //   bottomBar.style.display = 'none'
+    // })
+
+    // document.addEventListener('scroll', function () {
+    //   const offset = window.scrollY
+    //   window.scrollTo(0, 0)
+    //   container.scrollTop = container.scrollTop + offset
+    // })
+
+    // 如果光标被遮挡, 滚动container使其显现在视口
+    const showCursorInViewport = (lineNum: number) => {
+      const lineDom = document.querySelector(`.lineIndex-${lineNum}`)
+      if (lineDom) {
+        const lineRect = lineDom?.getBoundingClientRect()
+        // 光标和toolbar上边的差值. 小于0说明光标被遮挡
+        const offset = screenHeight - lineRect.y - (keyboardHeight + 50)
+
+        // 光标和header底部的差值. 小于0说明被header遮挡
+        const offsetTop = lineRect.y - 48
+
+        // console.log('showCursorInViewport', {
+        //   y: lineRect.y,
+        //   screenHeight,
+        //   keyboardHeight,
+        //   offset,
+        //   offsetTop,
+        // })
+        if (offset <= 0) {
+          console.log('光标遮挡', { offset, lineHeight: lineRect.height })
+          // window.scrollTo(0, 0)
+          container.scrollBy(0, -offset + lineRect.height)
+          return
+        }
+
+        if (offsetTop <= 0) {
+          container.scrollBy(0, offsetTop - lineRect.height)
+          return
+        }
+      }
+    }
+
+    editor.on('viewportChange', function (ins, from, to) {
+      console.log('viewportChange')
+      const lineNum = ins.getCursor().line
+      const lineDom = document.querySelector(`.lineIndex-${lineNum}`)
+      const lineRect = lineDom?.getBoundingClientRect()
+      // 判断光标位置是否在toolbar下面
+      if (lineDom) {
+        showCursorInViewport(lineNum)
+      } else {
+        /**
+         * 如果viewportChange导制新行的产生, 那么新行的dom不能立马获取到
+         */
+        setTimeout(() => {
+          showCursorInViewport(lineNum)
+        }, 10)
+      }
+    })
+
+    if (isAndroid() && vp) {
+      vp.addEventListener('resize', function () {
+        keyboardHeight = screenHeight - vp.height
+        console.log('android', { keyboardHeight, vpHeight: vp.height })
+        if (keyboardHeight > 0) {
+          if (toolbar) {
+            toolbar.style.display = 'block'
+          }
+          const lineNum = editor.getCursor().line
+          setTimeout(() => {
+            showCursorInViewport(lineNum)
+          }, 100)
+        } else {
+          if (toolbar) toolbar.style.display = 'none'
+        }
+      })
+    }
+
+    if (isIos() && vp) {
+      vp.addEventListener('resize', function () {
+        console.log('container scrollTop', container.scrollTop)
+        console.log('body scrolltop', document.body.scrollTop)
+
+        // container.scrollTop = 100;
+
+        keyboardHeight = screenHeight - vp.height
+        console.log('keyboardHeight', {
+          keyboardHeight,
+          screenHeight,
+          vpHeight: vp.height,
+        })
+        if (keyboardHeight > 0) {
+          if (toolbar) {
+            toolbar.style.display = 'block'
+            toolbar.style.bottom = `${keyboardHeight - 1}px`
+          }
+
+          const offset = window.scrollY
+          console.log('在调整前的scrollY', offset)
+
+          if (offset < 100) {
+            document.documentElement.scrollTop = 1
+            window.scrollBy(0, -2)
+          } else {
+            document.documentElement.scrollTop = 0
+          }
+
+          const lineNum = editor.getCursor().line
+          setTimeout(() => {
+            showCursorInViewport(lineNum)
+          }, 100)
+
+          safe.style.height = `${vp.height}px`
+          safe.style.marginBottom = `${keyboardHeight}px`
+        } else {
+          if (toolbar) toolbar.style.display = 'none'
+          safe.style.height = '200px'
+          safe.style.marginBottom = 0
+        }
+      })
+
+      document.body.addEventListener('touchstart', function (e) {
+        startY = e.touches[0].pageY
+      })
+
+      if (isIos()) {
+        document.body.addEventListener(
+          'touchmove',
+          function (e) {
+            if (e.target && (e.target as HTMLElement).closest('.safe')) {
+              endY = e.changedTouches[0].pageY
+              if (endY - startY > 0) {
+                console.log('手指往下')
+              } else {
+                console.log('手指往上')
+                e.preventDefault()
+              }
+            }
+          },
+          { passive: false, capture: true }
+        )
+      }
+    }
+
     console.log('end of onMount')
 
     // No need to call `on` because cm instance would change once after init
@@ -507,11 +678,39 @@
 </script>
 
 <div
-  class="bytemd"
+  class="bytemd outline"
   class:bytemd-split={split && activeTab === false}
   class:bytemd-fullscreen={fullscreen}
   bind:this={root}
 >
+  <div class="header">
+    <div class="status-area">
+      {#if status === 'failed'}
+        <i class="iconfont icon-alert-circle-outline alertIcon" />
+        <span>保存失败, 请检查网络</span>
+      {:else if status === 'loading'}
+        <i class="iconfont icon-sync-outline syncIcon" />
+        <span>正在保存...</span>
+      {:else if status === 'saved'}
+        <i class="iconfont icon-checkmark-circle-outline doneIcon" />
+        <span>保存成功</span>
+      {:else}
+        <span>内容将自动保存</span>
+      {/if}
+    </div>
+    {#if todoName}
+      <div class="right-area">
+        <div>
+          <span class="headerPlaying" />
+          <span>{todoName}</span>
+        </div>
+      </div>
+    {/if}
+  </div>
+  <div class="bytemd-body container">
+    <div class="bytemd-editor" style={styles.edit} bind:this={editorEl} />
+    <div class="safe">蕃茄拾光</div>
+  </div>
   <Toolbar
     {context}
     {split}
@@ -559,84 +758,6 @@
           sidebar = sidebar === 'toc' ? false : 'toc'
           break
       }
-    }}
-  />
-  <div class="bytemd-body">
-    <div class="bytemd-editor" style={styles.edit} bind:this={editorEl} />
-    <div bind:this={previewEl} class="bytemd-preview" style={styles.preview}>
-      {#if !overridePreview && (split || activeTab === 'preview')}
-        <Viewer
-          value={debouncedValue}
-          plugins={[
-            ...plugins,
-            {
-              viewerEffect({ markdownBody }) {
-                if (playingUuid) {
-                  showViewerPlaying(markdownBody, playingUuid)
-                } else {
-                  hideViewerPlaying(markdownBody)
-                }
-              },
-            },
-          ]}
-          {sanitize}
-          {remarkRehype}
-          {tomatoLineInfo}
-          {tomatoCountInfo}
-          on:hast={(e) => {
-            hast = e.detail.hast
-            vfile = e.detail.file
-          }}
-          on:viewerPlay={(e) => {
-            const { uuid, text } = e.detail
-            dispatch('play', { value: { uuid, text } })
-          }}
-        />
-      {/if}
-    </div>
-    <div class="bytemd-sidebar" class:bytemd-hidden={sidebar === false}>
-      <div
-        class="bytemd-sidebar-close"
-        on:click={() => {
-          sidebar = false
-        }}
-        on:keydown|self={(e) => {
-          if (['Enter', 'Space'].includes(e.code)) {
-            sidebar = false
-          }
-        }}
-      >
-        {@html icons.Close}
-      </div>
-      <Help
-        locale={mergedLocale}
-        actions={actions.leftActions}
-        visible={sidebar === 'help'}
-      />
-      <Toc
-        {hast}
-        locale={mergedLocale}
-        {currentBlockIndex}
-        on:click={(e) => {
-          const headings = previewEl.querySelectorAll('h1,h2,h3,h4,h5,h6')
-          headings[e.detail].scrollIntoView()
-        }}
-        visible={sidebar === 'toc'}
-      />
-    </div>
-  </div>
-  <Status
-    locale={mergedLocale}
-    showSync={!overridePreview && split}
-    value={debouncedValue}
-    {syncEnabled}
-    islimited={value.length > maxLength}
-    on:sync={(e) => {
-      syncEnabled = e.detail
-    }}
-    on:top={() => {
-      editor.scrollTo(null, 0)
-      previewEl.scrollTo({ top: 0 })
     }}
   />
 </div>

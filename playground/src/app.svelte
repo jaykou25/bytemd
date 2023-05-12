@@ -15,6 +15,7 @@
   import 'highlight.js/styles/vs.css'
   // placed after highlight styles to override `code` padding
   import 'katex/dist/katex.css'
+  import { onMount } from 'svelte'
 
   function stripPrefixes(obj: Record<string, any>) {
     return Object.entries(obj).reduce((p, [key, value]) => {
@@ -43,7 +44,7 @@
     })
   )
 
-  let value = localStorage.getItem('mdText') || markdownText
+  let value = ''
   let mode = 'tab'
   let localeKey = 'en'
   let maxLength: number
@@ -59,21 +60,12 @@
     mermaid: true,
   }
 
-  let tomatoLineInfo = localStorage.getItem('tomatoLineInfo')
-    ? JSON.parse(localStorage.getItem('tomatoLineInfo'))
-    : {
-        uuid1: 0,
-        uuid2: 2,
-      }
+  let tomatoLineInfo = undefined
+  let tomatoCountInfo = undefined
 
-  let tomatoCountInfo = localStorage.getItem('tomatoCountInfo')
-    ? JSON.parse(localStorage.getItem('tomatoCountInfo'))
-    : {
-        uuid1: 1,
-        uuid2: 2,
-      }
-
-  let playingUuid
+  let playingUuid = 'uuid1'
+  let todoName = 'hi'
+  let status
 
   $: plugins = [
     enabled.breaks && breaks(),
@@ -95,31 +87,39 @@
         locale: mermaidLocales[localeKey],
       }),
   ].filter((x) => x)
+
+  onMount(() => {
+    const arr = [undefined, 'loading', 'saved', 'failed']
+    let index = 0
+    setInterval(() => {
+      status = arr[index % 4]
+      index++
+    }, 3000)
+  })
+
+  // 模拟接口请求
+  setTimeout(() => {
+    value = localStorage.getItem('mdText') || markdownText
+
+    tomatoLineInfo = localStorage.getItem('tomatoLineInfo')
+      ? JSON.parse(localStorage.getItem('tomatoLineInfo'))
+      : {
+          uuid1: 0,
+          // uuid2: 2,
+        }
+  }, 2000)
+
+  setTimeout(() => {
+    tomatoCountInfo = localStorage.getItem('tomatoCountInfo')
+      ? JSON.parse(localStorage.getItem('tomatoCountInfo'))
+      : {
+          uuid1: 1,
+          // uuid2: 2,
+        }
+  }, 3200)
 </script>
 
-<div class="container">
-  <div class="line">
-    Mode:
-    {#each ['auto', 'split', 'tab'] as m}
-      <label> <input type="radio" bind:group={mode} value={m} />{m}</label>
-    {/each}
-    , Locale:
-    <select bind:value={localeKey}>
-      {#each Object.keys(locales) as l}
-        <option value={l}>{l}</option>
-      {/each}
-    </select>
-    , Max length:
-    <input bind:value={maxLength} type="number" />
-  </div>
-  <div class="line">
-    Plugins:
-    {#each Object.keys(enabled) as p}
-      {' '}
-      <label> <input type="checkbox" bind:checked={enabled[p]} />{p}</label>
-    {/each}
-  </div>
-
+<div id="root">
   <Editor
     {value}
     {mode}
@@ -128,8 +128,10 @@
     {tomatoLineInfo}
     {tomatoCountInfo}
     {playingUuid}
+    {todoName}
     placeholder={'Start writing with ByteMD'}
     locale={locales[localeKey]}
+    {status}
     uploadImages={(files) => {
       return Promise.all(
         files.map((file) => {
@@ -174,22 +176,24 @@
 </div>
 
 <style>
-  .container {
-    max-width: 1200px;
-    margin: 0 auto;
-  }
-  .line {
-    margin: 10px 0;
-    text-align: center;
-  }
   :global(body) {
-    margin: 0 10px;
+    margin: 0;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+
     font-size: 14px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial,
       sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
   }
-  :global(.bytemd) {
-    height: calc(100vh - 100px);
+  :global(#root) {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
   }
   :global(.medium-zoom-overlay) {
     z-index: 100;

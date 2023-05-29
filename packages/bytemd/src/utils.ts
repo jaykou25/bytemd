@@ -30,6 +30,8 @@ export function getProcessor({
 
   let schema = JSON.parse(schemaStr) as Schema
   schema.attributes!['*'].push('className') // Allow class names by default
+  schema.attributes!['video'] = ['src', 'controls', 'style'] // 允许video中的这些属性
+  schema.tagNames!.push('video') // 允许video标签
 
   if (typeof sanitize === 'function') {
     schema = sanitize(schema)
